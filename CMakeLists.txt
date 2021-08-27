@@ -18,40 +18,52 @@ set(ML_TARGET "MarcFly_Learngine")
 # Base Include Directiories
 set(ML_INC ${CMAKE_CURRENT_SOURCE_DIR}/engine)
 set(ML_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/libs)
-set(ML_EXT ${CMAKE_CURRENTS_SOURCE_DIR}/external_libs)
+set(ML_EXT ${CMAKE_CURRENT_SOURCE_DIR}/submodules)
 
 # Engine Source Files
 set(ML_SRC
-    ${ML_INC}/main.cpp    
+    ${ML_INC}/main.cpp
+    ${ML_INC}/mfly_window/mfly_window.cpp
+    "${ML_EXT}/enkiTS/src/TaskScheduler.cpp"
 )
-
-#------------------------------------------------------------------------------------------------
-# OWN LIBRARIES
-#------------------------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------------------------
-# EXTERNAL LIBRARIES
-#------------------------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------------------------
 # BUILD
 #------------------------------------------------------------------------------------------------
 
-
-add_executable(${ML_TARGET} "${ML_SRC}")
+# CrossWindow testing
+#add_executable(${ML_TARGET} "${ML_SRC}")
+add_subdirectory(${ML_EXT}/CrossWindow)
+xwin_add_executable(${ML_TARGET} "${ML_SRC}")
+target_link_libraries(${ML_TARGET} PUBLIC CrossWindow)
 
 # Windows basics
-# How do I make sure it is compiling with Mingw or something like that?
-set_target_properties(${ML_TARGET} PROPERTIES
-    LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup"
-)
+if(RUNTIME)
+    set_target_properties(${ML_TARGET} PROPERTIES
+        LINK_FLAGS "/SUBSYSTEM:WINDOWS"
+    )
+elseif()
+    set_target_properties(${ML_TARGET} PROPERTIES
+        LINK_FLAGS "/SUBSYSTEM:CONSOLE"
+    )
+endif()
 
 target_include_directories(${ML_TARGET} PUBLIC 
     "${ML_INC}"
+    "${ML_EXT}"
 )
 
+#------------------------------------------------------------------------------------------------
+# EXTERNAL LIBRARIES
+#------------------------------------------------------------------------------------------------
+
+# enkiTS - Multithreading
+set(enkiTS_INC "${ML_EXT}/enkiTS/src")
+target_include_directories(${ML_TARGET} PUBLIC ${enkiTS_INC})
+target_sources(${ML_TARGET} PUBLIC "${enkiTS_INC}/TaskScheduler.cpp")
 
 #------------------------------------------------------------------------------------------------
 # GROUP SOURCING FOR IDEs
 #------------------------------------------------------------------------------------------------
 
+#source_group()
