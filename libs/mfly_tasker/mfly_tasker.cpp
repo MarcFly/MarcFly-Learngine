@@ -1,12 +1,28 @@
 #include "mfly_tasker.h"
 using namespace mfly;
 
+#include <unordered_map>
+
+#include <functional>
+
+template<>
+class std::hash<TaskID>
+{
+    public:
+    size_t operator()(const TaskID& task) const { return task.id; }
+};
+
+// Data
+
 static std::vector<std::thread*> threads;
-static std::queue<Task*> scheduled_tasks;
+static std::unordered_map<TaskID, Task*> tasks;
+static std::priority_queue<TaskID> scheduled_tasks;
 static std::mutex _schedule_mtx;
 static std::condition_variable _schedule_event;
 
 static bool exit_flag;
+
+// Data Getters
 
 uint32_t Tasker::NumThreads()
 {
@@ -16,6 +32,8 @@ uint32_t Tasker::NumThreads()
 uint32_t Tasker::NumTasks() { 
     return scheduled_tasks.size(); 
 }
+
+// Base Funs
 
 void ThreadLoop()
 {
@@ -30,7 +48,9 @@ void ThreadLoop()
                     _schedule_event.wait(lock);
                 else
                 {
-                    t = scheduled_tasks.front();
+                    auto it = tasks.find(scheduled_tasks.top());
+                    t = it->second;
+                    tasks.erase(it);
                     scheduled_tasks.pop();
                 }
             }
@@ -38,6 +58,8 @@ void ThreadLoop()
 
         if(exit_flag) break;
 
+        // Lock access to task data
+        std::unique_lock<std::mutex> task_lock(t->access_lock);
         t->run();
     }
 }
@@ -72,9 +94,30 @@ bool Tasker::Close()
     return ret;
 }
 
-void Tasker::ScheduleTask(Task* task)
+TaskID Tasker::ScheduleTask(Task* task, uint16_t priority)
 {
     std::unique_lock<std::mutex> qLock(_schedule_mtx);
-    scheduled_tasks.push(task);
+    TaskID key;
+    key.id = pcg32_random();
+    key.priority = priority;
+    tasks.insert(std::pair<TaskID, Task*>(key, task)).second;
+    scheduled_tasks.push(key);
     _schedule_event.notify_one();
+    return key;
 }
+
+Task* Tasker::RetrieveTask(const TaskID& task_key)
+{
+    Task* ret = NULL;
+
+    auto it = tasks.find(task_key);
+    if(it == tasks.end()) return NULL;
+    // Should it be unscheduled?
+    // It should be at least locked...
+    if(!it->second->access_lock.try_lock())
+        return NULL;
+        
+    return it->second;
+}
+
+// Utilities

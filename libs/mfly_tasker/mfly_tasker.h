@@ -9,15 +9,23 @@
 
 namespace mfly {
 
+    struct TaskID
+    {
+        uint32_t id = 0;
+        uint16_t priority = 0;
+        bool operator <(const TaskID& check) const { return this->id < check.id; }
+        bool operator >(const TaskID& check) const { return this->id > check.id; }
+        bool operator ==(const TaskID& check) const { return this->id == check.id; }
+    };
+    
     class Task
     {
     public:
         virtual void run() = 0;
-
+        //bool operator <(const Task& check) { return this->id.id < check.id.id; }
     public:
-        uint32_t id;
         std::vector<uint32_t> dependencies;
-
+        std::mutex access_lock;
     };
 
     namespace Tasker
@@ -26,8 +34,9 @@ namespace mfly {
         void Update();
         bool Close();
 
-        void ScheduleTask(Task* task);
-
+        TaskID ScheduleTask(Task* task, uint16_t priority = 0);
+        Task* RetrieveTask(const TaskID& task_key);
+        
         uint32_t NumThreads();
         uint32_t NumTasks();
     };
@@ -35,5 +44,7 @@ namespace mfly {
 
 
 };
+
+
 
 #endif

@@ -44,6 +44,7 @@ int main(int argc, char** argv)
         waste_time();
     }
     t1.Stop();
+    time = t1.ReadMicroSec();
     printf("Single Thread: %f\n", t1.ReadMicroSec());
 
     t1.Start();
@@ -53,6 +54,7 @@ int main(int argc, char** argv)
     }
     while (mfly::Tasker::NumTasks() != 0) {}
     t1.Stop();
+    time = t1.ReadMicroSec();
     printf("Bad Multi Thread: %f\n", t1.ReadMicroSec());
 
     mfly::Tasker::Close();
