@@ -11,7 +11,7 @@
         - Or can be done once every some time and result is not critical
 */
 
-#define LOOPS 1000
+#define LOOPS 100
 
 int waste_time()
 {

@@ -158,7 +158,7 @@ TaskID mfly::Tasker::ScheduleTask(Task* task, uint16_t priority, TaskID* depende
             t->_schedule_mtx.unlock();
 
             uint32_t t_ind = ordered_threads[i];
-            for (uint16_t j = i; j < ordered_threads.size()-1; ++j)
+            for (uint16_t j = i; j < ordered_threads.size() - 1; ++j)
                 ordered_threads[j] = ordered_threads[j + 1];
             ordered_threads[ordered_threads.size() - 1] = t_ind;
 
