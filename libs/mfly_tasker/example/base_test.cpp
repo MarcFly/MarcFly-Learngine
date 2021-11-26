@@ -11,12 +11,14 @@
         - Or can be done once every some time and result is not critical
 */
 
-#define LOOPS 100
+#define LOOPS 10000
+
+#define ITERS 100000
 
 int waste_time()
 {
     uint32_t sum = 0;
-    for (uint32_t i = 0; i < 10000000; ++i)
+    for (uint32_t i = 0; i < ITERS; ++i)
         sum += 1;
 
     return sum;
@@ -54,18 +56,19 @@ void Test1_ScheduleWasteTime()
     double time = t1.ReadMicroSec();
 
     // Single Thread 10.000 100microsecond waits
-    t1.Start();
-    for (uint32_t i = 0; i < LOOPS; ++i)
-    {
-        waste_time();
-    }
-    t1.Stop();
-    time = t1.ReadMicroSec();
-    printf("Single Thread: %f us\n", time);
+    // t1.Start();
+    // for (uint32_t i = 0; i < LOOPS; ++i)
+    // {
+    //     waste_time();
+    // }
+    // t1.Stop();
+    // time = t1.ReadMicroSec();
+    // printf("Single Thread: %f us\n", time);
 
     SQUE_Timer t2;
     t1.Start();
     mfly::TaskID deps_test;
+    deps_test.current_thread = 23;
     mfly::TaskID* p_dep = &deps_test;
     for (uint32_t i = 0; i < LOOPS; ++i)
     {
@@ -87,8 +90,9 @@ void Test2_ScheduleCost()
     uint32_t i = 0;
     for (i = 0; i < LOOPS; ++i)
     {
+        mfly::Task* push = new long_task();
         t1.Start();
-        mfly::Tasker::ScheduleTask(new long_task());
+        mfly::Tasker::ScheduleTask(push);
         t1.Stop();
         total_time += t1.ReadMicroSec();
     }

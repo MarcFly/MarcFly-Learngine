@@ -49,15 +49,16 @@ void mfly::Thread::ThreadLoop()
 
                     // Ask other threads if they have its dependencies or are running them
                     static bool dep_found = false;
-                    for (uint32_t i = 0; i < threads_c.size(); ++i)
+                    Thread* curr_t = NULL;
+                    for(uint32_t i = 0; i < t->dependencies.size(); ++i)
                     {
-                        for (uint32_t j = 0; j < t->dependencies.size(); ++j)
-                            if (threads_c[i]->tasks.find(t->dependencies[j]) != threads_c[i]->tasks.end())
-                            {
-                                dep_found = true;
-                                break;
-                            }
-                        if (dep_found) break;
+                        //const TaskID& tid = t->dependencies[i];
+                        curr_t = threads_c[t->dependencies[i].current_thread];
+                        if(curr_t->tasks.find(t->dependencies[i]) != curr_t->tasks.end())
+                        {
+                            dep_found = true;
+                            break;
+                        }
                     }
 
                     scheduled_tasks.pop();
@@ -65,7 +66,7 @@ void mfly::Thread::ThreadLoop()
                     // If a dependency is waiting
                         // Lower priority by 1
                         // Reschedule it
-                        // Set t to NULL
+                        // Set t to NULL to get another task
                     if (dep_found)
                     {
                         --t->priority;
@@ -77,7 +78,7 @@ void mfly::Thread::ThreadLoop()
                     }
                     // ElseIf no dependencies are waiting
                         // Set task as being ran
-                        // Remove from the map and queue
+                        // Remove it from the map
                     else
                     {
                         is_running_task = true;
@@ -142,14 +143,16 @@ TaskID mfly::Tasker::ScheduleTask(Task* task, uint16_t priority, TaskID* depende
     
     while (!task_queued)
     {
+        mfly::Thread* t = 0;
         for (uint16_t i = 0; i < threads_c.size(); ++i)
         {
-            //ordered_threads.begin()->first = 1;
-            mfly::Thread* t = threads_c[ordered_threads[i]];
+            t = threads_c[ordered_threads[i]];
+            
             if (!t->_schedule_mtx.try_lock()) continue;
 
             key.id = pcg32_random();
             key.priority = priority;
+            key.current_thread = ordered_threads[i]; // Current id is just position in thread vector
             t->tasks.insert(std::pair<TaskID, Task*>(key, task));
             t->scheduled_tasks.push(key);
             t->_schedule_event.notify_one();

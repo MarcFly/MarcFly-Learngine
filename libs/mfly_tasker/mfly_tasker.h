@@ -15,6 +15,7 @@ namespace mfly {
     {
         uint32_t id = 0;
         int16_t priority = 0;
+        uint32_t current_thread = -1;
         bool operator <(const TaskID& check) const { return this->id < check.id; }
         bool operator >(const TaskID& check) const { return this->id > check.id; }
         bool operator ==(const TaskID& check) const { return this->id == check.id; }
