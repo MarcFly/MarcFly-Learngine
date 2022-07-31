@@ -7,13 +7,20 @@ enki::TaskScheduler enki_TS;
 #include <cstdio>
 #include <iostream>
 
+#include <mfly_window/mfly_window.hpp>
+#include <mfly_gpu/mfly_gpu.h>
+
 int main(int argc, const char** argv)
 {
     enki_TS.Initialize();
+    mfly::win::Init();
 
     printf("Press [Enter] to close...");
-
-    system("pause");
+    while(!mfly::win::PreUpdate())
+    {
+        
+    }
+    
     return 0;
 }
 

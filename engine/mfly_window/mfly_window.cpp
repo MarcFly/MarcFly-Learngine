@@ -8,6 +8,13 @@ namespace mfly { namespace win { std::vector<mfly::win::window> windows; }}
 uint16_t mfly::win::Init()
 {
     uint16_t ret = 0;
+    windows.push_back(window());
+    window& main = windows[windows.size()-1];
+
+    main.id = windows.size()-1;
+    main.xdesc.title = "Test main window";
+    main.xwindow.create(main.xdesc, main.xqueue);
+    
 
     return ret;
 }
@@ -29,9 +36,16 @@ uint16_t mfly::win::PreUpdate()
         win.xqueue.update();
         while (!win.xqueue.empty())
         {
+            const xwin::Event& event = win.xqueue.front();
             // Take care of events
             // Do them
             // Generate parallel tasks,...
+            if (event.type == xwin::EventType::Close)
+            {
+                win.xwindow.close();
+                ret = 1;
+            }
+
             win.xqueue.pop();
         }
     }

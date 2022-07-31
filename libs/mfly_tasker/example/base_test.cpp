@@ -1,3 +1,4 @@
+/*
 #include <mfly_tasker.h>
 #include <../sque_timer/sque_timer.h>
 #include <Windows.h>
@@ -11,6 +12,7 @@
         - Or can be done once every some time and result is not critical
 */
 
+/*
 #define LOOPS 10000
 
 #define ITERS 100000
@@ -120,3 +122,4 @@ int main(int argc, char** argv)
     system("pause");
     return 0;
 }
+*/

@@ -30,9 +30,12 @@ set(ML_SRC
 
 # Libraries
 #file(GLOB_RECURSE ML_LIBS_SRC ${ML_LIBS}/*.cpp ${ML_LIBS}/*.h ${ML_LIBS}/.hpp)
-set(ML_LIBS_SRC
-    ${ML_LIBS}/mfly_plugin/mfly_dlloading.h
-    ${ML_LIBS}/mfly_plugin/mfly_plugin.h)
+
+add_subdirectory(${ML_LIBS})
+message("Printing mfly libs: ${ML_LIBS_SRC}")
+#set(ML_LIBS_SRC
+#    ${ML_LIBS}/mfly_plugin/mfly_dlloading.h
+#    ${ML_LIBS}/mfly_plugin/mfly_plugin.h)
 #------------------------------------------------------------------------------------------------
 # BUILD
 #------------------------------------------------------------------------------------------------
@@ -43,6 +46,7 @@ add_subdirectory(${ML_EXT}/CrossWindow)
 xwin_add_executable(${ML_TARGET} "${ML_SRC}")
 target_link_libraries(${ML_TARGET} PUBLIC CrossWindow)
 target_sources(${ML_TARGET} PUBLIC "${ML_LIBS_SRC}")
+message("${ML_LIBS_SRC}")
 
 # Windows basics
 if(RUNTIME)
@@ -68,6 +72,22 @@ target_include_directories(${ML_TARGET} PUBLIC
 set(enkiTS_INC "${ML_EXT}/enkiTS/src")
 target_include_directories(${ML_TARGET} PUBLIC ${enkiTS_INC})
 target_sources(${ML_TARGET} PUBLIC "${enkiTS_INC}/TaskScheduler.cpp")
+
+
+# VULKAN THINGIES
+# Must setup Vulkan_LIBRARY environment variable for user, not system
+# Vulkan SDK installer does not set it, same with VULKAN_INCLUDE_DIR ideally
+message("Looking for Vulkan")
+set(Vulkan_LIBRARY "$ENV{VULKAN_SDK}\\Lib") # Have to set it in the env... so bad
+set(ENV{Vulkan_LIBRARY} "$ENV{VULKAN_SDK}\\Lib") # Have to set it in the env... so bad
+
+find_package(Vulkan REQUIRED)
+message("${VULKAN_INCLUDE_DIRS}")
+message("Linking with Vulkan")
+target_include_directories(${ML_TARGET} PUBLIC
+    "${Vulkan_INCLUDE_DIRS}")
+target_link_directories(${ML_TARGET} PUBLIC
+    "${Vulkan_LIBRARIES}")
 
 #------------------------------------------------------------------------------------------------
 # GROUP SOURCING FOR IDEs
