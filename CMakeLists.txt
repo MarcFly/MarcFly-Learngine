@@ -25,8 +25,14 @@ set(ML_SRC
     ${ML_INC}/main.cpp
     ${ML_INC}/mfly_window/mfly_window.cpp
     "${ML_EXT}/enkiTS/src/TaskScheduler.cpp"
+    ${ML_LIBS}/mfly_globals.h
 )
 
+# Libraries
+#file(GLOB_RECURSE ML_LIBS_SRC ${ML_LIBS}/*.cpp ${ML_LIBS}/*.h ${ML_LIBS}/.hpp)
+set(ML_LIBS_SRC
+    ${ML_LIBS}/mfly_plugin/mfly_dlloading.h
+    ${ML_LIBS}/mfly_plugin/mfly_plugin.h)
 #------------------------------------------------------------------------------------------------
 # BUILD
 #------------------------------------------------------------------------------------------------
@@ -36,6 +42,7 @@ set(ML_SRC
 add_subdirectory(${ML_EXT}/CrossWindow)
 xwin_add_executable(${ML_TARGET} "${ML_SRC}")
 target_link_libraries(${ML_TARGET} PUBLIC CrossWindow)
+target_sources(${ML_TARGET} PUBLIC "${ML_LIBS_SRC}")
 
 # Windows basics
 if(RUNTIME)

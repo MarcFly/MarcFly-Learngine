@@ -65,10 +65,9 @@ void Test1_ScheduleWasteTime()
     // time = t1.ReadMicroSec();
     // printf("Single Thread: %f us\n", time);
 
-    SQUE_Timer t2;
     t1.Start();
     mfly::TaskID deps_test;
-    deps_test.current_thread = 23;
+    deps_test.current_thread = 0;
     mfly::TaskID* p_dep = &deps_test;
     for (uint32_t i = 0; i < LOOPS; ++i)
     {
@@ -118,6 +117,6 @@ int main(int argc, char** argv)
     
 
     mfly::Tasker::Close();
-
+    system("pause");
     return 0;
 }

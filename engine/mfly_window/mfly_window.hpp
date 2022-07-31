@@ -54,6 +54,6 @@ namespace mfly
     };
 };
 
-void TestWindws();
+void TestWindows();
 
 #endif

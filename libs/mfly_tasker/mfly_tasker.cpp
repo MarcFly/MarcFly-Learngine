@@ -1,11 +1,11 @@
 #include "mfly_tasker.h"
 using namespace mfly;
 
-//#include <unordered_map>
+// Test Remotery Debugging
+#include <remotery/Remotery.h>
+static Remotery* rmt;
 
-//#include <functional>
-
-#include <../sque_timer/sque_timer.h>
+#include "../sque_timer/sque_timer.h"
 std::atomic<double> dep_check_time;
 
 double mfly::Tasker::GetDepCheckTime()
@@ -41,8 +41,9 @@ void mfly::Thread::ThreadLoop()
                     _schedule_event.wait(lock);
                 else
                 {
-                    SQUE_Timer t1;
-                    t1.Start();
+                    rmt_ScopedCPUSample(TaskLoop,0);
+
+                    rmt_BeginCPUSample(GetTask, 0);
                     // Take most prioritary task assigned to the thread
                     std::unordered_map<TaskID, Task*>::iterator it = tasks.find(scheduled_tasks.top());
                     t = it->second;
@@ -60,7 +61,7 @@ void mfly::Thread::ThreadLoop()
                             break;
                         }
                     }
-
+                    rmt_EndCPUSample();
                     scheduled_tasks.pop();
 
                     // If a dependency is waiting
@@ -69,24 +70,26 @@ void mfly::Thread::ThreadLoop()
                         // Set t to NULL to get another task
                     if (dep_found)
                     {
+                        rmt_BeginCPUSample(CheckDependencies, 0);
                         --t->priority;
                         TaskID tid;
                         tid.id = it->first.id;
                         tid.priority = it->first.priority-1;
                         scheduled_tasks.push(tid);
                         t = NULL;
+                        rmt_EndCPUSample();
                     }
                     // ElseIf no dependencies are waiting
                         // Set task as being ran
                         // Remove it from the map
                     else
                     {
+                        rmt_BeginCPUSample(RunTask, 0);
                         is_running_task = true;
                         running_task = it->first;
                         tasks.erase(it);
+                        rmt_EndCPUSample();
                     }
-                    t1.Stop();
-                    dep_check_time = dep_check_time + t1.ReadMicroSec();
                 }
             }
         }
@@ -99,6 +102,8 @@ void mfly::Thread::ThreadLoop()
 
 bool mfly::Tasker::Init()
 {
+    rmt_CreateGlobalInstance(&rmt);
+
     for (uint16_t i = 0; i < std::thread::hardware_concurrency(); ++i)
     {
         Thread* t = new Thread();
@@ -128,6 +133,8 @@ bool mfly::Tasker::Close()
         delete threads_c[i];
     }
     threads_c.clear();
+
+    rmt_DestroyGlobalInstance(rmt);
 
     return ret;
 }
