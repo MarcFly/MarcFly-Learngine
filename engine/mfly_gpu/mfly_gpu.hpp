@@ -16,7 +16,7 @@ namespace mfly
         uint16_t AsyncDispatch();
         uint16_t AsyncGather();
 
-        uint16_t event_code_start;
+        //uint16_t event_code_start = 0;
 
         enum ERRORCODE
         {

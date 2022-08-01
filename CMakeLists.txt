@@ -26,6 +26,7 @@ set(ML_SRC
     ${ML_INC}/mfly_window/mfly_window.cpp
     "${ML_EXT}/enkiTS/src/TaskScheduler.cpp"
     ${ML_LIBS}/mfly_globals.h
+    ${ML_INC}/mfly_gpu/mfly_gpu.cpp
 )
 
 # Libraries
@@ -88,6 +89,9 @@ target_include_directories(${ML_TARGET} PUBLIC
     "${Vulkan_INCLUDE_DIRS}")
 target_link_directories(${ML_TARGET} PUBLIC
     "${Vulkan_LIBRARIES}")
+target_link_libraries(${ML_TARGET} PUBLIC
+    "${Vulkan_LIBRARIES}/vulkan-1.lib") # How annoying
+message("Libs hello? ${Vulkan_LIBS_LIST}")
 
 #------------------------------------------------------------------------------------------------
 # GROUP SOURCING FOR IDEs
