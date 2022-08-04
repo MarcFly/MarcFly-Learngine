@@ -29,8 +29,8 @@ inline vk::SurfaceKHR getSurface(xwin::Window* window, vk::Instance& instance)
     info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     info.pNext = NULL;
     info.flags = 0;
-    info.hinstance = window->hinstance;
-    info.hwnd = window->hwnd;
+    info.hinstance = window->getHinstance();
+    info.hwnd = window->getHwnd();   
 
     result = vkCreateWin32SurfaceKHR(static_cast<VkInstance>(instance), &info,
                                      NULL, &surface);
