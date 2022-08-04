@@ -4,5 +4,3 @@
 [submodule "submodules/CrossWindow"]
 	path = submodules/CrossWindow
 	url = https://github.com/alaingalvan/CrossWindow
-[submodule "CrossWindow-Graphics"]
-	url = https://github.com/alaingalvan/CrossWindow-Graphics.git
