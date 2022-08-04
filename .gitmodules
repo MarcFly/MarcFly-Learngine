@@ -1,9 +1,3 @@
 [submodule "submodules/enkiTS"]
 	path = submodules/enkiTS
 	url = https://github.com/dougbinks/enkiTS
-[submodule "submodules/CrossWindow"]
-	path = submodules/CrossWindow
-	url = https://github.com/alaingalvan/CrossWindow
-[submodule "submodules/CrossWindow-Graphics"]
-	path = submodules/CrossWindow-Graphics
-	url = https://github.com/alaingalvan/CrossWindow-Graphics
