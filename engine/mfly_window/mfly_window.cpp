@@ -1,5 +1,6 @@
 #include "mfly_window.hpp"
 #include <enkiTS/src/TaskScheduler.h>
+#include <CrossWindow/Graphics.h>
 
 extern enki::TaskScheduler enki_TS;
 namespace mfly { namespace win { std::vector<mfly::win::window> windows; }}
@@ -89,4 +90,16 @@ void xmain(int argc, const char** argv)
 {
     printf("Done this");
     main(argc, argv);
+}
+
+#include <direct.h>
+#include <Windows.h>
+#include <CrossWindow/CrossWindow.h>
+#include <CrossWindow/Graphics.h>
+
+void* mfly::win::getGAPISurface(uint16_t window_handle, vk::Instance& gapi_instance)
+{  
+    xwin::Window* win = &mfly::win::windows[window_handle].xwindow;
+    return (void*)xgfx::getSurface(win, gapi_instance);
+
 }

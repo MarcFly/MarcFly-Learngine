@@ -42,10 +42,20 @@ message("Printing mfly libs: ${ML_LIBS_SRC}")
 #------------------------------------------------------------------------------------------------
 
 # CrossWindow testing
-#add_executable(${ML_TARGET} "${ML_SRC}")
+set(XGFX_API VULKAN CACHE STRING "API TO USE, currently vulkan only, will depend on backed if there are more in the future")
+set_property(
+    CACHE
+    XGFX_API PROPERTY
+    STRINGS NOOP VULKAN OPENGL DIRECTX12 METAL
+)
+
 add_subdirectory(${ML_EXT}/CrossWindow)
+set_property(TARGET CrossWindow PROPERTY FOLDER "Dependencies")
+
+add_subdirectory(${ML_EXT}/CrossWindow-Graphics ${CMAKE_BINARY_DIR}/crosswindow-graphics)
+
 xwin_add_executable(${ML_TARGET} "${ML_SRC}")
-target_link_libraries(${ML_TARGET} PUBLIC CrossWindow)
+target_link_libraries(${ML_TARGET} PUBLIC CrossWindow CrossWindowGraphics)
 target_sources(${ML_TARGET} PUBLIC "${ML_LIBS_SRC}")
 message("${ML_LIBS_SRC}")
 
@@ -92,6 +102,41 @@ target_link_directories(${ML_TARGET} PUBLIC
 target_link_libraries(${ML_TARGET} PUBLIC
     "${Vulkan_LIBRARIES}/vulkan-1.lib") # How annoying
 message("Libs hello? ${Vulkan_LIBS_LIST}")
+
+# XWIN-GRAPHICS VUlkan Linking
+if(XGFX_API STREQUAL "VULKAN")
+    find_path(VULKAN_INCLUDE_DIR NAMES vulkan/vulkan.h HINTS
+        "$ENV{VULKAN_SDK}/include"
+        "$ENV{VULKAN_SDK}/Include"
+        "$ENV{VK_SDK_PATH}/Include")
+    if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+        find_library(XGFX_LIBRARY
+            NAMES vulkan-1 vulkan vulkan.1
+            HINTS
+            "$ENV{VULKAN_SDK}/lib"
+            "$ENV{VULKAN_SDK}/Lib"
+            "$ENV{VULKAN_SDK}/Bin"
+            "$ENV{VK_SDK_PATH}/Bin")
+    else()
+        find_library(XGFX_LIBRARY
+                    NAMES vulkan-1 vulkan vulkan.1
+                    HINTS
+            "$ENV{VULKAN_SDK}/Lib32"
+            "$ENV{VULKAN_SDK}/Bin32"
+            "$ENV{VK_SDK_PATH}/Bin32")
+    endif()
+elseif(XGFX_API STREQUAL "OPENGL")
+    add_subdirectory(../../external/glad ${CMAKE_BINARY_DIR}/glad)
+    target_include_directories(
+        Glad
+        PUBLIC ../../external/opengl-registry/api
+    )
+    set(XGFX_LIBRARY Glad)
+    set_property(TARGET Glad PROPERTY FOLDER "Dependencies")
+elseif(XGFX_API STREQUAL "METAL")
+    find_library(XGFX_LIBRARY Metal)
+endif()
+
 
 #------------------------------------------------------------------------------------------------
 # GROUP SOURCING FOR IDEs

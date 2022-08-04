@@ -2,7 +2,12 @@
 #define MFLY_WINDOW
 
 #include <stdint.h>
+
 #include <CrossWindow/CrossWindow.h>
+//#include <CrossWindow/Graphics.h>
+
+namespace vk { struct Instance; }
+
 #include <vector>
 
 namespace mfly
@@ -49,10 +54,13 @@ namespace mfly
             xwin::Window xwindow;
             uint8_t id = 0;
         };
-
-        //static std::vector<mfly::win::window> windows;
+        
+        void* getGAPISurface(uint16_t window_handle, vk::Instance& gapi_instance);
+        
     };
 };
+
+
 
 void TestWindows();
 

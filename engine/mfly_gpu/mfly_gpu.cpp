@@ -5,8 +5,11 @@
 VkApplicationInfo application_info = {};
 VkInstanceCreateInfo create_info = {};
 VkInstance instance;
-const char* instance_extensions[2] = {"VK_KHR_surface", "VK_KHR_win32_surface"};
-const char* enabled_layers[1] = {"VK_LAYER_KHRONONS_validation"};
+const char* instance_extensions[] = {
+    "VK_KHR_surface", 
+    "VK_KHR_win32_surface"
+};
+const char* enabled_layers[] = {"VK_LAYER_KHRONOS_validation"};
 // Extensions are super important
 // Such as vkCreateDebugUtilsMessesngerEXT with extension name VK_EXT_debug_utils
 // Extensions usually use VK_EXT while builtin use VK_KHR
@@ -31,14 +34,20 @@ VkDeviceQueueCreateInfo queue_create_info = {};
 
 VkDeviceCreateInfo device_create_info = {};
 VkDevice device;
-const char* device_extensions[1] = {"VK_KHR_swapchain"};
+const char* device_extensions[] = {"VK_KHR_swapchain"};
 // GPUs have driver and isntalled extensions -> Varies from Device to instance
 // Much more per GPU than per instance *Ray Tracing for example)
 // 
 
+VkSurfaceKHR surface;
+VkSwapchainCreateInfoKHR swapchain_create_info = {};
+VkSwapchainKHR swapchain;
+VkImage* swapchainImageHandles;
+uint32_t image_count;
+
 // Module Basics
 uint16_t mfly::gpu::Init()
-{
+{   
     uint16_t ret = 0;
 
     // Declare Vulkan application
@@ -60,7 +69,7 @@ uint16_t mfly::gpu::Init()
     physical_devices = new VkPhysicalDevice[vkPDeviceCount];
     vkEnumeratePhysicalDevices(instance, &vkPDeviceCount, physical_devices);
     //assert(vkPDeviceCount > 0);
-    VkPhysicalDevice dev  = physical_devices[0];
+    VkPhysicalDevice dev  = physical_devices[0]; // Grab Pointer to device in use
 
     // vkEnumerateDeviceExtensionProperties(dev, ...)
     // vlGetPhysicalDeviceProperties(dev, ...)
@@ -85,8 +94,43 @@ uint16_t mfly::gpu::Init()
     result = vkCreateDevice(dev, &device_create_info, nullptr, &device);
     printf("VkResult is: %d\n", result); 
 
+    // Ask window manager to get a surface
+    surface = (VkSurfaceKHR)mfly::win::getGAPISurface(0, (vk::Instance)instance);
+
+    swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_create_info.surface = surface;
+    swapchain_create_info.minImageCount = 4;
+    
+    // Should use vkGetPhysicalDeviceSurfaceFormatsKHR to fins su&pported
+    swapchain_create_info.imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
+    swapchain_create_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    
+    swapchain_create_info.imageExtent = VkExtent2D{1920, 1080};
+    swapchain_create_info.imageArrayLayers = 1;
+    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_create_info.presentMode = VK_PRESENT_MODE_MAILBOX_KHR; // The good one
+    // There are many more settings, research
+    vkCreateSwapchainKHR(device, &swapchain_create_info, nullptr, &swapchain);
+
+    // Check how many images we actually got and retrieve them
+    
+    vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr); // Sending no array to fill to get count
+    swapchainImageHandles = new VkImage[image_count];
+    vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchainImageHandles);
     return ret;
 }
+#include "../mfly_window/mfly_window.hpp"
+// The swapchain you acquire image to interact with
+// App draws over acquired image
+// Then we hand the image back to image and immediately ask for another to the swapchain to keep the loop going
+// Like OpenGLSwapBuffers... or however it was said -> Swapchain nows presents image on screen (Vertically - vsync)
+// After used, the swapchain holds the image in the image bucket for the app to use and does not have anything to present
+// Like this we can set a buffer of images for the buffer to present instead of being starved for images
+
+// In the case that the swapchain has no more images to provide while it is presenting one, it will drop image being present to be sent back
+// then use the next in the buffer to continue the presentation -> Tearing -> Ideally, don't send if there is one in presentation (vsync - wait for a vertical draw to occurr on screen)
+
+// This is solved with Presentation Modes
 
 uint16_t mfly::gpu::Close()
 {
@@ -95,17 +139,41 @@ uint16_t mfly::gpu::Close()
     return ret;
 }
 
+//temporary variables
+VkSemaphore imageAvailableSemaphore;
+VkFence imageAvailableFence;
+uint32_t currImageIndex;
+
 uint16_t mfly::gpu::PreUpdate()
 {
     uint16_t ret = 0;
 
+    // Acquire image to draw on
+    vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, // Max time to wait for image (usually as much as possible)
+                            imageAvailableSemaphore, // Signal when acquired -> Wait on GPU
+                            imageAvailableFence, // Signal when acquired -> Wait on CPU
+                            &currImageIndex); // Which image to use from the handles of images in the swapchain
+
     return ret;
 }
+
+VkQueue queue;
+VkSemaphore renderFinishedSemaphore;
+VkFence syncCPUwithGPU_fence;
 
 uint16_t mfly::gpu::DoUpdate()
 {
     uint16_t ret = 0;
 
+    VkSubmitInfo submit_info = {}; // Sutrct to give to queue that will send things to GPU
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 0; // As many calls you need to do
+    submit_info.pCommandBuffers = nullptr; // Struct that holds the draw calls
+    submit_info.waitSemaphoreCount = 1; // Wait for ???
+    submit_info.signalSemaphoreCount = 1; // Number of Semaphores to alert the queue is done
+    submit_info.pSignalSemaphores = &renderFinishedSemaphore;
+
+    vkQueueSubmit(queue, 1, &submit_info, syncCPUwithGPU_fence); // Check fence for syncing
     return ret;
 }
 
