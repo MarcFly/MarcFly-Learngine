@@ -81,3 +81,56 @@ Pros:
  - No tearing
 Cons:
  - Wasteful, images that are drawn while there is still in queue are thrown. Bad on power limited devices (mobile, ultraportables,...)
+
+
+## Code Examples (C++)
+
+### Initialization
+```c++
+// Ask window manager to get a surface
+surface = (VkSurfaceKHR)mfly::win::getGAPISurface(0, (vk::Instance)instance);
+
+swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+swapchain_create_info.surface = surface;
+swapchain_create_info.minImageCount = 4;
+
+// Should use vkGetPhysicalDeviceSurfaceFormatsKHR to fins su&pported
+swapchain_create_info.imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
+swapchain_create_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+swapchain_create_info.imageExtent = VkExtent2D{1920, 1080};
+swapchain_create_info.imageArrayLayers = 1;
+swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+swapchain_create_info.presentMode = VK_PRESENT_MODE_MAILBOX_KHR; // The good one
+// There are many more settings, research
+// https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkSwapchainCreateInfoKHR.html
+vkCreateSwapchainKHR(device, &swapchain_create_info, nullptr, &swapchain);
+
+// Check how many images we actually got and retrieve them
+
+vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr); // Sending no array to fill to get count
+swapchainImageHandles = new VkImage[image_count];
+vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchainImageHandles);
+```
+
+### Send commands to be drawn on the image
+```c++
+// Get an image to draw on
+vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, // Max time to wait for image (usually as much as possible)
+                            imageAvailableSemaphore, // Signal when acquired -> Wait on GPU
+                            imageAvailableFence, // Signal when acquired -> Wait on CPU
+                            &currImageIndex); // Which image to use from the handles of images in the swapchain
+
+
+// Setup Draw Calls
+
+VkSubmitInfo submit_info = {}; // Sutrct to give to queue that will send things to GPU
+submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+submit_info.commandBufferCount = 0; // As many calls you need to do
+submit_info.pCommandBuffers = nullptr; // Struct that holds the draw calls
+submit_info.waitSemaphoreCount = 1; // Wait for ???
+submit_info.signalSemaphoreCount = 1; // Number of Semaphores to alert the queue is done
+submit_info.pSignalSemaphores = &renderFinishedSemaphore;
+
+vkQueueSubmit(queue, 1, &submit_info, syncCPUwithGPU_fence); // Check fence for syncing
+```

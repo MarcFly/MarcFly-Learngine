@@ -6,8 +6,6 @@
 #include <CrossWindow/CrossWindow.h>
 //#include <CrossWindow/Graphics.h>
 
-namespace vk { struct Instance; }
-
 #include <vector>
 
 namespace mfly
@@ -55,7 +53,7 @@ namespace mfly
             uint8_t id = 0;
         };
         
-        void* getGAPISurface(uint16_t window_handle, vk::Instance& gapi_instance);
+        void* getGAPISurface(void* gapi_instance, uint16_t window_handle);
         
     };
 };

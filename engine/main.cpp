@@ -14,7 +14,9 @@ int main(int argc, const char** argv)
 {
     enki_TS.Initialize();
     mfly::win::Init();
-    mfly::gpu::Init();
+
+    mfly::gpu::ProvideSurfaceFun(mfly::win::getGAPISurface);
+    mfly::gpu::DefaultInit();
     
     printf("Press [Enter] to close...\n");
     while(!mfly::win::PreUpdate())

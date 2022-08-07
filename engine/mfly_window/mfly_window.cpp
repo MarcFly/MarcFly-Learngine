@@ -97,9 +97,10 @@ void xmain(int argc, const char** argv)
 #include <CrossWindow/CrossWindow.h>
 #include <CrossWindow/Graphics.h>
 
-void* mfly::win::getGAPISurface(uint16_t window_handle, vk::Instance& gapi_instance)
+void* mfly::win::getGAPISurface(void* gapi_instance, uint16_t window_handle)
 {  
     xwin::Window* win = &mfly::win::windows[window_handle].xwindow;
-    return (void*)xgfx::getSurface(win, gapi_instance);
-
+    vk::Instance fin_inst = (vk::Instance)(VkInstance)gapi_instance;
+    vk::SurfaceKHR ret = xgfx::getSurface(win, fin_inst);
+    return (void*)ret;
 }
