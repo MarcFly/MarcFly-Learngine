@@ -31,7 +31,7 @@ namespace mfly
         uint16_t DeclareQueue(VkDeviceQueueCreateInfo info, float* prios); // Declare a new queue for vulkan
         uint16_t InitQueues(VkLDeviceWrap info, uint32_t phys_device_handle = 0); // Gather non initialized queues and create a logical device for them
         
-
+        uint16_t CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surface_handle, uint16_t logical_dvc_handle);
         uint16_t Close();
         uint16_t PreUpdate();
         uint16_t DoUpdate();
@@ -61,9 +61,26 @@ namespace mfly
 #endif
 
         // Module Specifics
-        typedef void*(*GetSurfaceFun)(void*, uint16_t); // Vulkan Instance requirement, window to use for surface
+        /// void*: VkInstance the library provides and the window api most likely requires
+        /// uint16_t: Window number that we want a surface from (usually the main window - 0)
+        /// expected result: VkSurfaceKHR
+        typedef void*(*GetSurfaceFun)(void*, uint16_t);
         void ProvideSurfaceFun(GetSurfaceFun fun);
 
+
+        struct VkMemInfoWrap {
+            VkMemoryRequirements mem = {};
+            VkMemoryAllocateInfo mem_info = {};
+        };
+        // Memory Allocation?
+        struct VkBufferInfoWrap {
+            VkBufferCreateInfo buffer = {};
+            uint16_t logical_dvc_handle = 0;
+            uint16_t mem_handle = -1;
+            
+            std::vector<VkBufferViewCreateInfo> views;
+        };
+        uint16_t CreateBuffer(VkBufferInfoWrap info);
         
     };
 };

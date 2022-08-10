@@ -9,9 +9,12 @@ enki::TaskScheduler enki_TS;
 
 #include <mfly_window/mfly_window.hpp>
 #include <mfly_gpu/mfly_gpu.hpp>
-
+#include <sque_timer.h>
 int main(int argc, const char** argv)
 {
+    InitTimer();
+    CalibrateTimer();
+
     enki_TS.Initialize();
     mfly::win::Init();
 
@@ -20,8 +23,8 @@ int main(int argc, const char** argv)
     
     printf("Press [Enter] to close...\n");
     while(!mfly::win::PreUpdate())
-    {
-        
+    {   
+
     }
     
     return 0;

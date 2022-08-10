@@ -38,3 +38,9 @@ Optional type of buffer which allows for formatted upload such as representing a
 *Don't really understand for now
 
 It basically generates a `VkBufferView` which provides info on how to handle the data in the buffer.
+
+### VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC / VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+Pry into a previous memory allocation and set your data there
+
+### VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT
+Very VERY small buffer that does not require allocation, it will be popped up there but is very restricted in size.

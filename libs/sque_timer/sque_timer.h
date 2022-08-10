@@ -88,4 +88,93 @@ private:
 	bool is_active;																										
 };
 
+#include "tscns.h"
+static TSCNS tscns;
+inline void InitTimer() {
+    tscns.init();
+}
+inline void CalibrateTimer() {
+    tscns.calibrate();
+}
+
+class TSCNS_Timer {
+public:																																
+	TSCNS_Timer() : is_stopped(false), is_active(true)
+    {
+        double now = tscns.rdns();
+        stop_at_ms = start_at_ms = now/100000.;
+        stop_at_us = start_at_us = now/1000.;
+        stop_at_ns = start_at_ns = now;
+    }																													
+																																
+	void Start()
+    {
+        is_active = true;
+        is_stopped = false;
+        double now = tscns.rdns();
+        stop_at_ms = start_at_ms = now/1000000.;
+        stop_at_us = start_at_us = now/1000.;
+        stop_at_ns = start_at_ns = now;
+    }	
+
+	void Stop()
+    {
+        double now = tscns.rdns();
+        stop_at_ms = now/1000000.;
+        stop_at_us = now/1000.;
+        stop_at_ns = now;
+        is_stopped = true;
+    }																												
+	void Kill()
+    {
+        double now = tscns.rdns();
+        stop_at_ms = now/1000000.;
+        stop_at_us = now/1000.;
+        stop_at_ns = now;
+        is_stopped = true;
+    }
+
+	bool IsStopped() const { return is_stopped; }
+
+	bool IsActive() const { return is_active; }
+    
+    double ReadMilliSec() const
+    {
+        if (is_stopped || !is_active)
+            return stop_at_ms - start_at_ms;
+        double now = tscns.rdns()/1000000.;
+        return now - start_at_ms;
+        // 1660033411191.5017
+        // 1660033382558.7542
+    }
+
+	double ReadMicroSec() const
+    {
+        if (is_stopped || !is_active)
+            return stop_at_us - start_at_us;
+        double now = tscns.rdns()/1000.;
+        return now - start_at_us;
+    }
+
+	double ReadNanoSec() const
+    {
+        if (is_stopped || !is_active)
+            return stop_at_ns - start_at_ns;
+        double now = tscns.rdns();
+        return (now - start_at_us);
+    }
+																																		
+private:
+	double start_at_ms;																													
+	double start_at_ns;																													
+	double start_at_us;																													
+																																		
+	double stop_at_ms;																													
+	double stop_at_ns;																													
+	double stop_at_us;																													
+																																		
+	bool is_stopped;																										
+	bool is_active;		
+};
+
 #endif`

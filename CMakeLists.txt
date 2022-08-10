@@ -26,6 +26,7 @@ set(ML_SRC
     ${ML_INC}/mfly_window/mfly_window.cpp
     "${ML_EXT}/enkiTS/src/TaskScheduler.cpp"
     ${ML_LIBS}/mfly_globals.h
+    ${ML_LIBS}/sque_timer/sque_timer.h
     ${ML_INC}/mfly_gpu/mfly_gpu.cpp
 )
 
@@ -56,6 +57,7 @@ add_subdirectory(${ML_EXT}/CrossWindow-Graphics ${CMAKE_BINARY_DIR}/crosswindow-
 
 xwin_add_executable(${ML_TARGET} "${ML_SRC}")
 target_link_libraries(${ML_TARGET} PUBLIC CrossWindow CrossWindowGraphics)
+message("${ML_LIBS_SRC}")
 target_sources(${ML_TARGET} PUBLIC "${ML_LIBS_SRC}")
 message("${ML_LIBS_SRC}")
 
@@ -73,6 +75,7 @@ endif()
 target_include_directories(${ML_TARGET} PUBLIC 
     "${ML_INC}"
     "${ML_EXT}"
+    ${ML_LIBS}/sque_timer
 )
 
 #------------------------------------------------------------------------------------------------
