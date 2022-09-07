@@ -2,20 +2,25 @@
 
 #include <vulkan/vulkan_funcs.hpp>
 
-namespace mfly {
-    namespace gpu {
+namespace mfly
+{
+    namespace gpu
+    {
         // Understand if the CreateInfo structures will be useful at runtime or only on creation
         // If not -> worth it to keep the memory for debuggin on the wrapper?
 
         static const float queue_prio = 1.;
-        struct VkQueueWrap {
+        struct VkQueueWrap
+        {
             float queue_prio = 1.f;
             VkDeviceQueueCreateInfo queue_create_info = {};
         };
 
-        struct VkSwapchainWrap {
+        struct VkSwapchainWrap
+        {
             VkSwapchainKHR swapchain;
-            VkImage* image_handles;
+            uint16_t logical_dvc_handle;
+            VkImage *image_handles;
             uint32_t image_count;
 
             uint32_t curr_image;
@@ -24,28 +29,48 @@ namespace mfly {
             VkFence img_fence;
         };
 
-        struct VkBufferMemWrap {
+        struct VkBufferMemWrap
+        {
             VkBuffer buffer;
             std::vector<VkBufferView> views;
+            uint16_t mem_handle = -1;
         };
 
-        struct VkImageMemWrap {
+        struct VkImageMemWrap
+        {
             VkImage img;
             std::vector<VkImageView> views;
+            uint16_t mem_handle = -1;
         };
-        
-        struct VkAllocMemWrap {
+
+        struct VkAllocMemWrap
+        {
             VkDeviceMemory mem;
             uint64_t next_offset;
             uint64_t size;
         };
 
-        static struct VkApp {
+        struct VkLDeviceWrap
+        {
+            VkDevice logical_dvc;
+            std::vector<VkBufferMemWrap> buffers;
+            std::vector<VkAllocMemWrap> mem;
+            std::vector<VkImageMemWrap> images;
+        };
+
+        struct VkShaderModuleWrap {
+            VkShaderModule shader;
+            VkPipelineShaderStageCreateInfo stage_info = {};
+        };
+
+        // None of this is thread safe right now
+        static struct VkApp
+        {
             VkInstance instance;
 
-            VkPhysicalDevice* phys_dvcs = nullptr;
+            VkPhysicalDevice *phys_dvcs = nullptr;
             uint32_t phys_dvc_count;
-            std::vector<VkDevice> logical_dvcs;
+            std::vector<VkLDeviceWrap> logical_dvcs;
 
             VkSurfaceKHR main_surface;
             std::vector<VkSurfaceKHR> surfaces;
@@ -53,17 +78,15 @@ namespace mfly {
 
             std::vector<VkSwapchainWrap> swapchains;
 
-            std::vector<VkBufferMemWrap> buffers;
-            std::vector<VkAllocMemWrap> mem;
-
-            std::vector<VkImageMemWrap> images;
+            std::vector<VkShaderModuleWrap> shaders;
 
         } vkapp;
-        
+
         static std::vector<VkDeviceQueueCreateInfo> declared_queues;
         static std::vector<std::vector<float>> declared_priorities;
 
-        static struct VkAppInfo {
+        static struct VkAppInfo
+        {
             VkInstanceInfoWrap info;
             std::vector<VkPhysDeviceInfoWrap> p_dvcs;
             std::vector<VkLDeviceInfoWrap> l_dvcs;
@@ -73,8 +96,7 @@ namespace mfly {
             std::vector<VkImageInfoWrap> imgs;
 
         } MEMOPT(vkapp_info);
-        
-        
+
     };
 };
 
@@ -95,13 +117,14 @@ namespace mfly {
 // Good to specialize the queues -> Transfer, async,...
 // GPUInfo and tools by Sascha Willems https://github.com/SaschaWillems/Vulkan
 
-const char* device_extensions[] = {"VK_KHR_swapchain"};
+const char *device_extensions[] = {"VK_KHR_swapchain"};
 // GPUs have driver and isntalled extensions -> Varies from Device to instance
 // Much more per GPU than per instance *Ray Tracing for example)
-// 
+//
 
-uint16_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap info) {
-    
+uint16_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap &info)
+{
+
     // Declare Vulkan application
     info.app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     info.app_info.apiVersion = VK_API_VERSION_1_3;
@@ -109,17 +132,17 @@ uint16_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap info) {
     info.create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 
     // On MAC using MoltenVK or similar porting, flag and extension:
-    //info.create_info.flags |=  VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    //info.exts.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    // info.create_info.flags |=  VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    // info.exts.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     // Tidbit -> emplace_back == push_back but better -> No inferred copy on constructors or data not in scope stack!
     // example: string s; vector.emplace_back(s) -> s is copied because is in scope stack
     // example2: vector.emplace_back(std::string("NewString"); -> Moved to vector scope so no copy!
-    
+
     info.create_info.enabledExtensionCount = info.exts.size();
     info.create_info.ppEnabledExtensionNames = info.exts.data();
 
     info.create_info.enabledLayerCount = info.layers.size();
-    info.create_info.ppEnabledLayerNames = info.layers.data(); //enabled_layers;
+    info.create_info.ppEnabledLayerNames = info.layers.data(); // enabled_layers;
 
     // Missing Extension create info linking
     // Learn about Allocation Callbacks
@@ -131,56 +154,69 @@ uint16_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap info) {
     vkapp.phys_dvcs = new VkPhysicalDevice[vkapp.phys_dvc_count];
     vkEnumeratePhysicalDevices(vkapp.instance, &vkapp.phys_dvc_count, vkapp.phys_dvcs);
 
-    for(int i = 0; i < vkapp.phys_dvc_count; ++i) {
-        vkapp_info.p_dvcs.push_back(VkPhysDeviceInfoWrap());
-        VkPhysDeviceInfoWrap& dvc_info = vkapp_info.p_dvcs.back();
-        vkGetPhysicalDeviceProperties(vkapp.phys_dvcs[i], &dvc_info.properties);
-        vkGetPhysicalDeviceFeatures(vkapp.phys_dvcs[i], &dvc_info.features);
-    }
-
     // DEBUG INFO
     MEMOPT(
         vkapp_info.info = info;
+
+        for (int i = 0; i < vkapp.phys_dvc_count; ++i) {
+            vkapp_info.p_dvcs.push_back(VkPhysDeviceInfoWrap());
+            VkPhysDeviceInfoWrap &dvc_info = vkapp_info.p_dvcs.back();
+            vkGetPhysicalDeviceProperties(vkapp.phys_dvcs[i], &dvc_info.properties);
+            vkGetPhysicalDeviceFeatures(vkapp.phys_dvcs[i], &dvc_info.features);
+        }
+
         uint32_t ext_count = 0;
         vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, nullptr);
         vkapp_info.info.available_exts.resize(ext_count);
-        vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, vkapp_info.info.available_exts.data());
-    );
-    
+        vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, vkapp_info.info.available_exts.data()););
+
     return 0;
 }
 
-uint16_t mfly::gpu::InitQueues(VkLDeviceInfoWrap& info, uint16_t phys_dvc_handle) {    
+uint16_t mfly::gpu::InitQueues(VkLDeviceInfoWrap &info, uint16_t phys_dvc_handle)
+{
     uint32_t size = info.queues_info.size();
     info.queues_info.back().pQueuePriorities = info.prios.back().data();
-    for(int i = size - 2; i > 0; --i) {
-        info.queues_info[i].pNext = &info.queues_info[i+1];
+    for (int i = size - 2; i > 0; --i)
+    {
+        info.queues_info[i].pNext = &info.queues_info[i + 1];
         info.queues_info[i].pQueuePriorities = info.prios[i].data();
     }
-    
-    vkapp.logical_dvcs.push_back(VkDevice());
-    VkDevice& device = vkapp.logical_dvcs.back();
-    
+
+    vkapp.logical_dvcs.push_back(VkLDeviceWrap());
+    VkDevice &device = vkapp.logical_dvcs.back().logical_dvc;
+
     info.create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     info.create_info.queueCreateInfoCount = info.queues_info.size();
     info.create_info.pQueueCreateInfos = info.queues_info.data();
     info.create_info.enabledExtensionCount = info.exts.size();
     info.create_info.ppEnabledExtensionNames = info.exts.data();
+    if (info.exts_info.size() > 0)
+    {
+        info.create_info.pNext = &info.exts_info[0];
+        for (int i = 1; i<info.exts_info.size()> 1; ++i)
+        {
+            // Know that 2nd field of every extension info is pNext a Void*
+            // then memcpy into that the pointer to the next one
+            char **curr_info = (char **)&info.exts_info[i - 1];     // Retrieve last info
+            char **pNext = &(*curr_info) + sizeof(VkStructureType); // Get to Byte where pNext starts
+            memcpy(&pNext, &info.exts_info[i], sizeof(void *));
+        }
+    }
 
     VkResult result = vkCreateDevice(vkapp.phys_dvcs[phys_dvc_handle], &info.create_info, nullptr, &device);
     assert(result == 0);
-    printf("VkResult is: %d\n", result); 
+    printf("VkResult is: %d\n", result);
 
     // DEBUG INFO
     MEMOPT(
-        vkapp_info.l_dvcs.push_back(info);
-    )
-    
-    
+        vkapp_info.l_dvcs.push_back(info);)
+
     return 0;
 }
 
-uint16_t mfly::gpu::CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surface_handle, uint16_t logical_dvc_handle) {
+uint16_t mfly::gpu::CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surface_handle, uint16_t logical_dvc_handle)
+{
 
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     info.surface = vkapp.surfaces[surface_handle];
@@ -188,68 +224,71 @@ uint16_t mfly::gpu::CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surf
 
     vkapp.swapchains.push_back(VkSwapchainWrap());
     uint16_t size = vkapp.swapchains.size();
-    VkSwapchainWrap& scw = vkapp.swapchains.back();
-    VkDevice& dvc = vkapp.logical_dvcs[logical_dvc_handle];
+    VkSwapchainWrap &scw = vkapp.swapchains.back();
+    scw.logical_dvc_handle = logical_dvc_handle;
+    VkLDeviceWrap &used_dvc = vkapp.logical_dvcs[logical_dvc_handle];
+    VkDevice &dvc = used_dvc.logical_dvc;
     vkCreateSwapchainKHR(dvc, &info, nullptr, &scw.swapchain);
 
     vkGetSwapchainImagesKHR(dvc, scw.swapchain, &scw.image_count, nullptr);
     scw.image_handles = new VkImage[scw.image_count];
     vkGetSwapchainImagesKHR(dvc, scw.swapchain, &scw.image_count, scw.image_handles);
-    
+
     // DEBUG INFO
     MEMOPT(
-        vkapp_info.swapchains.push_back(info);
-    )
+        vkapp_info.swapchains.push_back(info);)
 
     return size;
 }
 
-uint32_t mfly::gpu::CreateBuffer(VkBufferInfoWrap info) {
+uint32_t mfly::gpu::CreateBuffer(VkBufferInfoWrap info)
+{
     info.buffer.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 
-    vkapp.buffers.push_back(VkBufferMemWrap());
-    VkBufferMemWrap& buf = vkapp.buffers.back();
-    
-    VkDevice& dvc = vkapp.logical_dvcs[info.handles.logical_dvc_handle];
+    VkLDeviceWrap &used_dvc = vkapp.logical_dvcs[info.handles.logical_dvc_handle];
+    used_dvc.buffers.push_back(VkBufferMemWrap());
+    VkBufferMemWrap &buf = used_dvc.buffers.back();
+    VkDevice &dvc = used_dvc.logical_dvc;
     vkCreateBuffer(dvc, &info.buffer, nullptr, &buf.buffer);
 
     uint64_t use_offset = 0;
     VkMemInfoWrap mem_info = {};
     vkGetBufferMemoryRequirements(dvc, buf.buffer, &mem_info.mem);
 
-    if(info.handles.mem_handle == UINT16_MAX)
+    if (info.handles.mem_handle == UINT16_MAX)
     {
-        vkapp.mem.push_back(VkAllocMemWrap());
-        info.handles.mem_handle = vkapp.mem.size()-1;
-        VkAllocMemWrap& mem = vkapp.mem[info.handles.mem_handle];
+        used_dvc.mem.push_back(VkAllocMemWrap());
+        info.handles.mem_handle = used_dvc.mem.size() - 1;
+        VkAllocMemWrap &mem = used_dvc.mem[info.handles.mem_handle];
         use_offset = mem.next_offset;
 
         mem_info.mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         mem.size = mem_info.mem_info.allocationSize = mem_info.mem.size;
         mem.next_offset = mem.next_offset + mem.size;
         mem_info.mem_info.memoryTypeIndex = 0; // TODO: Find Using Req???
-        vkapp.mem.push_back(VkAllocMemWrap());
-        
-        vkAllocateMemory(dvc, &mem_info.mem_info, nullptr, &vkapp.mem.back().mem);
-        info.handles.mem_handle = vkapp.mem.size()-1;
+        used_dvc.mem.push_back(VkAllocMemWrap());
+
+        vkAllocateMemory(dvc, &mem_info.mem_info, nullptr, &used_dvc.mem.back().mem);
+        info.handles.mem_handle = used_dvc.mem.size() - 1;
         // How do I deal with the memory allocation?
         // How should it be done, is the AMD VKMemoryAllocator good or better?
-        // Is this something that is tied to th ebuffer and should be known always?    
+        // Is this something that is tied to th ebuffer and should be known always?
         MEMOPT(
             vkapp_info.mem_allocs.push_back(mem_info);
-            info.handles.mem_info_handle = vkapp_info.mem_allocs.size()-1;
-        )
+            info.handles.mem_info_handle = vkapp_info.mem_allocs.size() - 1;)
     }
-    else { // Using a known allocation
-        use_offset = vkapp.mem[info.handles.mem_handle].next_offset;
-        vkapp.mem[info.handles.mem_handle].next_offset += mem_info.mem.size;
+    else
+    { // Using a known allocation
+        use_offset = used_dvc.mem[info.handles.mem_handle].next_offset;
+        used_dvc.mem[info.handles.mem_handle].next_offset += mem_info.mem.size;
+        buf.mem_handle = info.handles.mem_handle;
     }
-    vkBindBufferMemory(dvc, buf.buffer, vkapp.mem[info.handles.mem_handle].mem, use_offset); // Offset? What?
+    vkBindBufferMemory(dvc, buf.buffer, used_dvc.mem[info.handles.mem_handle].mem, use_offset); // Offset? What?
 
     // Create View for Texel Buffers
-    if(info.buffer.usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | info.buffer.usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)
-    {  
-        for(auto view_info : info.views)
+    if (info.buffer.usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | info.buffer.usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)
+    {
+        for (auto view_info : info.views)
         {
             view_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
             view_info.buffer = buf.buffer;
@@ -261,86 +300,127 @@ uint32_t mfly::gpu::CreateBuffer(VkBufferInfoWrap info) {
 
     // DEBUG INFO
     MEMOPT(
-        vkapp_info.buffers.push_back(info);
-    )
-    return vkapp.buffers.size()-1;
+        vkapp_info.buffers.push_back(info);)
+    return used_dvc.buffers.size() - 1;
 }
 
-uint32_t mfly::gpu::CreateImage(VkImageInfoWrap info) {
+uint32_t mfly::gpu::CreateImage(VkImageInfoWrap info)
+{
     // Example Image
     info.img.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 
-    vkapp.images.push_back(VkImageMemWrap());
-    VkImageMemWrap& img = vkapp.images.back();
-    VkDevice& dvc = vkapp.logical_dvcs[info.handles.logical_dvc_handle];
+    VkLDeviceWrap &used_dvc = vkapp.logical_dvcs[info.handles.logical_dvc_handle];
+
+    used_dvc.images.push_back(VkImageMemWrap());
+    VkImageMemWrap &img = used_dvc.images.back();
+    VkDevice &dvc = used_dvc.logical_dvc;
     vkCreateImage(dvc, &info.img, nullptr, &img.img);
 
     uint64_t use_offset = 0;
     VkMemInfoWrap mem_info = {};
     vkGetImageMemoryRequirements(dvc, img.img, &mem_info.mem);
 
-    if(info.handles.mem_handle == UINT16_MAX)
+    if (info.handles.mem_handle == UINT16_MAX)
     {
-        vkapp.mem.push_back(VkAllocMemWrap());
-        info.handles.mem_handle = vkapp.mem.size()-1;
-        VkAllocMemWrap& mem = vkapp.mem[info.handles.mem_handle];
+        used_dvc.mem.push_back(VkAllocMemWrap());
+        info.handles.mem_handle = used_dvc.mem.size() - 1;
+        VkAllocMemWrap &mem = used_dvc.mem[info.handles.mem_handle];
         use_offset = mem.next_offset;
 
         mem_info.mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         mem.size = mem_info.mem_info.allocationSize = mem_info.mem.size;
         mem.next_offset = mem.next_offset + mem.size;
         mem_info.mem_info.memoryTypeIndex = 0; // TODO: Find Using Req???
-        vkapp.mem.push_back(VkAllocMemWrap());
-        
-        vkAllocateMemory(dvc, &mem_info.mem_info, nullptr, &vkapp.mem.back().mem);
-        info.handles.mem_handle = vkapp.mem.size()-1;
+        used_dvc.mem.push_back(VkAllocMemWrap());
+
+        vkAllocateMemory(dvc, &mem_info.mem_info, nullptr, &used_dvc.mem.back().mem);
+        info.handles.mem_handle = used_dvc.mem.size() - 1;
         // How do I deal with the memory allocation?
         // How should it be done, is the AMD VKMemoryAllocator good or better?
-        // Is this something that is tied to th ebuffer and should be known always?    
+        // Is this something that is tied to th ebuffer and should be known always?
         MEMOPT(
             vkapp_info.mem_allocs.push_back(mem_info);
-            info.handles.mem_info_handle = vkapp_info.mem_allocs.size()-1;
-        )
+            info.handles.mem_info_handle = vkapp_info.mem_allocs.size() - 1;)
     }
-    else { // Using a known allocation
-        use_offset = vkapp.mem[info.handles.mem_handle].next_offset;
-        vkapp.mem[info.handles.mem_handle].next_offset += mem_info.mem.size;
+    else
+    { // Using a known allocation
+        use_offset = used_dvc.mem[info.handles.mem_handle].next_offset;
+        used_dvc.mem[info.handles.mem_handle].next_offset += mem_info.mem.size;
+        img.mem_handle = info.handles.mem_handle;
     }
 
-    vkBindImageMemory(dvc, img.img, vkapp.mem[info.handles.mem_handle].mem, use_offset);
+    vkBindImageMemory(dvc, img.img, used_dvc.mem[info.handles.mem_handle].mem, use_offset);
 
-    for(auto view_info : info.views) {
+    for (auto view_info : info.views)
+    {
         view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         view_info.image = img.img;
 
         img.views.push_back(VkImageView());
         vkCreateImageView(dvc, &view_info, nullptr, &img.views.back());
     }
-    
+
     // DEBUG INFO
     MEMOPT(
-        vkapp_info.imgs.push_back(info);
-    )
+        vkapp_info.imgs.push_back(info);)
 
+    return used_dvc.images.size() - 1;
+}
 
-    return vkapp.images.size()-1;
+uint16_t mfly::gpu::AddShader(VkShaderInfoWrap shader_info, uint16_t logical_dvc, uint32_t stage) {
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = shader_info.code_size;
+    create_info.pCode = shader_info.bytecode;
+    
+    if(shader_info.existing_shader == UINT16_MAX) {
+        vkapp.shaders.push_back(VkShaderModuleWrap());
+        shader_info.existing_shader = vkapp.shaders.size()-1;
+    }
+    VkShaderModule& shader = vkapp.shaders[shader_info.existing_shader].shader;
+    VkShaderModule tmp;
+    VkResult res = vkCreateShaderModule(vkapp.logical_dvcs[logical_dvc].logical_dvc, &create_info, nullptr, &tmp);
+    if(res != VK_SUCCESS){
+        return UINT16_MAX;
+    }
+    else {
+        shader = tmp;
+        return shader_info.existing_shader;
+    }
+}
+
+uint16_t mfly::gpu::AddShaders(const VkShaderBulk& shader_bulk) {
+    uint32_t shader_num = vkapp.shaders.size();
+    vkapp.shaders.reserve(vkapp.shaders.size() + shader_bulk.shader_infos.size());
+    for(auto group : shader_bulk.declares) {
+        for(int i = group.start; i < group.end; ++i){
+            uint16_t ret = AddShader(shader_bulk.shader_infos[i], group.logical_dvc, group.stage);
+            if(ret != UINT16_MAX) {
+                VkShaderModuleWrap& shader = vkapp.shaders[ret];
+                shader.stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+                shader.stage_info.pName = group.name;
+                shader.stage_info.stage = (VkShaderStageFlagBits)group.stage;
+                shader.stage_info.module = shader.shader;
+            }
+        }
+    }
+    return UINT16_MAX;
 }
 
 // Module Basics
 uint16_t mfly::gpu::DefaultInit()
-{   
+{
     uint16_t ret = 0;
 
     VkInstanceInfoWrap app_info;
-    app_info.exts.push_back("VK_KHR_surface"); 
+    app_info.exts.push_back("VK_KHR_surface");
     app_info.exts.push_back("VK_KHR_win32_surface");
-    
+
     app_info.layers.push_back("VK_LAYER_KHRONOS_validation");
     InitVkInstance(app_info);
 
-    
-    //assert(vkPDeviceCount > 0);
-    VkPhysicalDevice dev  = vkapp.phys_dvcs[0]; // Grab Pointer to device in use
+    // assert(vkPDeviceCount > 0);
+    VkPhysicalDevice dev = vkapp.phys_dvcs[0]; // Grab Pointer to device in use
 
     // vkEnumerateDeviceExtensionProperties(dev, ...)
     // vkGetPhysicalDeviceProperties(dev, ...)
@@ -362,35 +442,46 @@ uint16_t mfly::gpu::DefaultInit()
     l_dvc_info.prios.push_back(std::vector<float>());
     l_dvc_info.prios.back().push_back(1);
     l_dvc_info.queues_info.back().pQueuePriorities = l_dvc_info.prios.back().data();
-
+    // l_dvc_info.exts.push_back("VK_KHR_acceleration_structure");
     l_dvc_info.exts.push_back("VK_KHR_swapchain");
+
+    // Example: Device Extension Features/Create Info
+    // Define it as usual or create memory in the `exts_info` void* vector
+    // Then modify it with the data required and you are set
+    // It is not pretty but works
+    // VkPhysicalDeviceAccelerationStructureFeaturesKHR rt_struct_info = {};
+    // rt_struct_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    // rt_struct_info.accelerationStructure = VK_TRUE;
+    // l_dvc_info.exts_info.push_back(new VkPhysicalDeviceAccelerationStructureFeaturesKHR(rt_struct_info));
+    // auto check_f = (VkPhysicalDeviceAccelerationStructureFeaturesKHR*)l_dvc_info.exts_info.back();
+    // Not enabled because it is not supported on 5700G
+
     InitQueues(l_dvc_info, 0);
 
     // Ask window manager to get a surface
-    vkapp.main_surface = (VkSurfaceKHR)vkapp.get_surface((void*)vkapp.instance, 0); // use main window for main surface
+    vkapp.main_surface = (VkSurfaceKHR)vkapp.get_surface((void *)vkapp.instance, 0); // use main window for main surface
     vkapp.surfaces.push_back(vkapp.main_surface);
 
     VkSwapchainCreateInfoKHR swapchain_info = {};
     swapchain_info.minImageCount = 4;
-    
+
     // Should use vkGetPhysicalDeviceSurfaceFormatsKHR to find supported
     swapchain_info.imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
     swapchain_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    
+
     swapchain_info.imageExtent = VkExtent2D{1920, 1080};
     swapchain_info.imageArrayLayers = 1;
     swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchain_info.presentMode = VK_PRESENT_MODE_MAILBOX_KHR; // The good one
-    
-    CreateSwapchain(swapchain_info, 0, 0);
 
+    CreateSwapchain(swapchain_info, 0, 0);
 
     // Example Buffers
     VkBufferInfoWrap buf_info;
     buf_info.buffer.size = 1024;
     buf_info.buffer.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     buf_info.buffer.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    
+
     CreateBuffer(buf_info);
 
     VkBufferInfoWrap buf_info_txl;
@@ -399,30 +490,30 @@ uint16_t mfly::gpu::DefaultInit()
     buf_info_txl.buffer.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     buf_info_txl.views.push_back(VkBufferViewCreateInfo());
-    VkBufferViewCreateInfo& view_info = buf_info_txl.views.back();
+    VkBufferViewCreateInfo &view_info = buf_info_txl.views.back();
     view_info = {};
     view_info.offset = 0;
     view_info.format = VK_FORMAT_R32G32B32_SFLOAT;
     view_info.range = VK_WHOLE_SIZE;
-    
+
     CreateBuffer(buf_info_txl);
-    
+
     // Example Image
     VkImageInfoWrap img_info;
     img_info.img = {};
     img_info.img.imageType = VK_IMAGE_TYPE_2D;
     img_info.img.format = VK_FORMAT_R8G8B8A8_SNORM;
-    img_info.img.samples = VK_SAMPLE_COUNT_1_BIT; // For this case if it is not 1 it does not work, why?
+    img_info.img.samples = VK_SAMPLE_COUNT_1_BIT;             // For this case if it is not 1 it does not work, why?
     img_info.img.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // Type of image
     img_info.img.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     img_info.img.extent = VkExtent3D{1920, 1080, 1};
     img_info.img.arrayLayers = 1;
     img_info.img.mipLevels = 1;
     // Image info data...
-    
+
     // View
     img_info.views.push_back(VkImageViewCreateInfo());
-    VkImageViewCreateInfo& img_view_info = img_info.views.back();
+    VkImageViewCreateInfo &img_view_info = img_info.views.back();
     img_view_info = {};
     img_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     img_view_info.format = VK_FORMAT_R8G8B8A8_SNORM;
@@ -439,14 +530,13 @@ uint16_t mfly::gpu::DefaultInit()
     img_view_info.subresourceRange.levelCount = 1;
     img_view_info.subresourceRange.baseArrayLayer = 0;
     img_view_info.subresourceRange.layerCount = 1;
-    
+
     img_info.handles.logical_dvc_handle = 0;
     CreateImage(img_info);
 
     // DEBUG INFO
     MEMOPT(
-        VkAppInfo& t_info = vkapp_info;
-    )
+        VkAppInfo &t_info = vkapp_info;)
 
     return ret;
 }
@@ -454,26 +544,65 @@ uint16_t mfly::gpu::DefaultInit()
 uint16_t mfly::gpu::Close()
 {
     uint16_t ret = 0;
-    delete[] vkapp.phys_dvcs; // memleak...
 
+    // Most nullptr here are baseon pAllocatorCallback which I do not know what is it
+    // Something for custom allocators like AMD vulkan mem allocation?
+    vkDestroyBuffer;
+    vkDestroyBufferView;
+    vkDestroyCommandPool;
+    vkDestroyDescriptorPool;
+    vkDestroyDescriptorSetLayout;
+    vkDestroyFramebuffer;
+    vkDestroyFence;
+    vkDestroyImage;
+    vkDestroyImageView;
+    vkDestroyPipeline;
+    vkDestroySampler;
+
+    for (auto scw : vkapp.swapchains) {
+        vkDestroySwapchainKHR(vkapp.logical_dvcs[scw.logical_dvc_handle].logical_dvc, scw.swapchain, nullptr);
+    }
+    
+    for (auto dvc : vkapp.logical_dvcs)
+    {
+        for (auto buf : dvc.buffers)
+        {
+            for(auto bufview : buf.views){
+                vkDestroyBufferView(dvc.logical_dvc, bufview, nullptr);
+            }
+            vkDestroyBuffer(dvc.logical_dvc, buf.buffer, nullptr);
+        }
+
+        for (auto img : dvc.images) {
+            for (auto imgview : img.views) {
+                vkDestroyImageView(dvc.logical_dvc, imgview, nullptr);
+            }
+            vkDestroyImage(dvc.logical_dvc, img.img, nullptr);
+        }
+        
+        vkDestroyDevice(dvc.logical_dvc, nullptr);
+    }
+
+    delete[] vkapp.phys_dvcs; // memleak...
+    
     vkDestroyInstance(vkapp.instance, nullptr);
     return ret;
 }
 
-//temporary variables
-
+// temporary variables
 
 uint16_t mfly::gpu::PreUpdate()
 {
     uint16_t ret = 0;
 
     // Acquire image to draw on
-    for(auto sc_wrap : vkapp.swapchains) {
-        vkAcquireNextImageKHR(vkapp.logical_dvcs[0], sc_wrap.swapchain, 
-                            UINT64_MAX,                 // Max time to wait for image (usually as much as possible)
-                            sc_wrap.img_semaphore,      // Signal when acquired -> Wait on GPU
-                            sc_wrap.img_fence,          // Signal when acquired -> Wait on CPU
-                            &sc_wrap.curr_image);       // Which image to use from the handles of images in the swapchain
+    for (auto sc_wrap : vkapp.swapchains)
+    {
+        vkAcquireNextImageKHR(vkapp.logical_dvcs[0].logical_dvc, sc_wrap.swapchain,
+                              UINT64_MAX,            // Max time to wait for image (usually as much as possible)
+                              sc_wrap.img_semaphore, // Signal when acquired -> Wait on GPU
+                              sc_wrap.img_fence,     // Signal when acquired -> Wait on CPU
+                              &sc_wrap.curr_image);  // Which image to use from the handles of images in the swapchain
     }
 
     return ret;
@@ -489,10 +618,10 @@ uint16_t mfly::gpu::DoUpdate()
 
     VkSubmitInfo submit_info = {}; // Struct to give to queue that will send things to GPU
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 0; // As many calls you need to do
+    submit_info.commandBufferCount = 0;    // As many calls you need to do
     submit_info.pCommandBuffers = nullptr; // Struct that holds the draw calls
-    submit_info.waitSemaphoreCount = 1; // Wait for ???
-    submit_info.signalSemaphoreCount = 1; // Number of Semaphores to alert the queue is done
+    submit_info.waitSemaphoreCount = 1;    // Wait for ???
+    submit_info.signalSemaphoreCount = 1;  // Number of Semaphores to alert the queue is done
     submit_info.pSignalSemaphores = &renderFinishedSemaphore;
 
     vkQueueSubmit(queue, 1, &submit_info, syncCPUwithGPU_fence); // Check fence for syncing
@@ -521,6 +650,7 @@ uint16_t mfly::gpu::AsyncGather()
 }
 
 // Module Specificss
-void mfly::gpu::ProvideSurfaceFun(GetSurfaceFun fun) {
+void mfly::gpu::ProvideSurfaceFun(GetSurfaceFun fun)
+{
     vkapp.get_surface = fun;
 }

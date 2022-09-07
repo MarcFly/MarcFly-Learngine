@@ -117,6 +117,7 @@ for view {
             for object {
                 set material_index
                 set object_index
+                DRAW()
             }
         }
     }

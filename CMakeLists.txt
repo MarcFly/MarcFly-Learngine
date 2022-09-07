@@ -28,6 +28,7 @@ set(ML_SRC
     ${ML_LIBS}/mfly_globals.h
     ${ML_LIBS}/sque_timer/sque_timer.h
     ${ML_INC}/mfly_gpu/mfly_gpu.cpp
+    ${ML_INC}/mfly_shaders/mfly_shaders.cpp
 )
 
 # Libraries
@@ -99,14 +100,16 @@ find_package(Vulkan REQUIRED)
 message("${VULKAN_INCLUDE_DIRS}")
 message("Linking with Vulkan")
 target_include_directories(${ML_TARGET} PUBLIC
-    "${Vulkan_INCLUDE_DIRS}")
+    "${Vulkan_INCLUDE_DIRS}"
+    "$ENV{VULKAN_SDK}/include")
 target_link_directories(${ML_TARGET} PUBLIC
     "${Vulkan_LIBRARIES}")
 target_link_libraries(${ML_TARGET} PUBLIC
-    "${Vulkan_LIBRARIES}/vulkan-1.lib") # How annoying
+    "${Vulkan_LIBRARIES}/vulkan-1.lib"# How annoying
+    "${Vulkan_LIBRARIES}/shaderc_combinedd.lib")
 message("Libs hello? ${Vulkan_LIBS_LIST}")
 
-# XWIN-GRAPHICS VUlkan Linking
+# XWIN-GRAPHICS Vulkan Linking
 if(XGFX_API STREQUAL "VULKAN")
     find_path(VULKAN_INCLUDE_DIR NAMES vulkan/vulkan.h HINTS
         "$ENV{VULKAN_SDK}/include"

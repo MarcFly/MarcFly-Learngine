@@ -8,8 +8,11 @@
 #ifdef MEM_OPTIMIZE
 #undef MEMOPT;
 #define MEMOPT(a) ;
+#define MEMOPT_ALT(a) a;
 #else
-#define MEMOPT(a) a; 
+#define MEMOPT(a) a;
+#undef MEMOPT_ALT;
+#define MEMOPT_ALT(a) ; 
 #endif
 
 namespace mfly
@@ -30,22 +33,49 @@ namespace mfly
             VkInstanceCreateInfo create_info = {};
             std::vector<const char*> exts;
             std::vector<const char*> layers;
-
+            
             std::vector<VkExtensionProperties> available_exts;
         };
-        uint16_t InitVkInstance(VkInstanceInfoWrap instance_info); // Startup Vulkan
+        uint16_t InitVkInstance(VkInstanceInfoWrap& instance_info); // Startup Vulkan
         
-
-        // Function to Gather Physical Device possible Extensions
         struct VkLDeviceInfoWrap {
             std::vector<VkDeviceQueueCreateInfo> queues_info;
             std::vector<std::vector<float>> prios;
             VkDeviceCreateInfo create_info = {};
             std::vector<const char*> exts;
+            std::vector<void*> exts_info;
         };
+
         uint16_t InitQueues(VkLDeviceInfoWrap& info, uint16_t phys_dvc_handle = 0);
 
         uint16_t CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surface_handle, uint16_t logical_dvc_handle);
+        
+        struct VkShaderInfoWrap{
+            uint32_t* bytecode;
+            uint64_t code_size;
+            uint16_t existing_shader = UINT16_MAX;
+        };
+        
+        struct VkShaderStageInfoWrap {
+            uint32_t start, end; // Uses 2 values for start and end when used in a bulk
+            // Recreating a pipeline should be asking the previously created pipeline again...
+            
+            uint16_t logical_dvc;
+            uint32_t stage;
+            const char* name;
+        };
+
+        struct VkPipelineStateInfoWrap {
+
+        };
+
+        struct VkShaderBulk {
+            std::vector<VkShaderInfoWrap> shader_infos;
+            std::vector<VkShaderStageInfoWrap> declares;
+        };
+
+        uint16_t AddShader(VkShaderInfoWrap shader_info, uint16_t logical_dvc, uint32_t stage);
+        uint16_t AddShaders(const VkShaderBulk& shader_bulk);
         
         uint16_t Close();
         uint16_t PreUpdate();
@@ -82,7 +112,6 @@ namespace mfly
         typedef void*(*GetSurfaceFun)(void*, uint16_t);
         void ProvideSurfaceFun(GetSurfaceFun fun);
 
-
         struct VkMemInfoWrap {
             VkMemoryRequirements mem = {};
             VkMemoryAllocateInfo mem_info = {};
@@ -106,6 +135,14 @@ namespace mfly
             std::vector<VkImageViewCreateInfo> views = {};
         };
         uint32_t CreateImage(VkImageInfoWrap info);
+
+        struct VkCmdPoolWrap {
+            VkCommandPoolCreateInfo info = {};
+            VkCommandPool pool;
+            VkCommandBufferAllocateInfo alloc_info = {};
+            //VkComandBuffer buf;
+            VkCommandBufferBeginInfo begin_info = {};
+        };
 
     };
 };
