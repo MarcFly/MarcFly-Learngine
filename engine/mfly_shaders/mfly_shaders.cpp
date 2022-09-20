@@ -44,7 +44,8 @@ uint16_t mfly::shaders::AddDefines(const char* def, const char* val) {
 uint16_t mfly::shaders::AddShader(const char* code, ShaderKind type) {
     raw_shaders.push_back(Shader());
     Shader& s = raw_shaders.back();
-    s.code = std::string(code);
+    s.code = code;
+    s.len = strlen(s.code);
     s.type = type;
 
     return raw_shaders.size()-1;
@@ -93,10 +94,11 @@ uint16_t mfly::shaders::CompileGroups(bool optimization, int opt_level) {
         
         for(auto shader : shader_group.shaders)
         {
+            Shader& curr = raw_shaders[shader];
             shaderc::Compiler invoke;
             shaderc::SpvCompilationResult result = 
-                invoke.CompileGlslToSpv(  raw_shaders[shader].code, 
-                                            (shaderc_shader_kind)(int)raw_shaders[shader].type, 
+                invoke.CompileGlslToSpv(    curr.code, curr.len,
+                                            (shaderc_shader_kind)(int)curr.type, 
                                             "src",
                                             options);
 

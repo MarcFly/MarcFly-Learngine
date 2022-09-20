@@ -27,7 +27,8 @@ namespace mfly
         uint16_t Close();
         
         struct Shader {
-            std::string code; // bad...
+            const char* code;
+            uint32_t len;
             ShaderKind type;
         };
         uint16_t AddShader(const char* code, ShaderKind type);
