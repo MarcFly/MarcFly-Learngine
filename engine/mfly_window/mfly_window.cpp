@@ -97,10 +97,12 @@ void xmain(int argc, const char** argv)
 #include <CrossWindow/CrossWindow.h>
 #include <CrossWindow/Graphics.h>
 
+static std::vector<vk::SurfaceKHR> surfaces(10);
+
 void* mfly::win::getGAPISurface(void* gapi_instance, uint16_t window_handle)
 {  
     xwin::Window* win = &mfly::win::windows[window_handle].xwindow;
     vk::Instance fin_inst = (vk::Instance)(VkInstance)gapi_instance;
-    vk::SurfaceKHR ret = xgfx::getSurface(win, fin_inst);
-    return (void*)ret;
+
+    return (void*)(VkSurfaceKHR)xgfx::getSurface(win, fin_inst);
 }
