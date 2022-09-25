@@ -41,10 +41,13 @@ uint16_t mfly::win::PreUpdate()
             // Take care of events
             // Do them
             // Generate parallel tasks,...
-            if (event.type == xwin::EventType::Close)
-            {
-                win.xwindow.close();
-                ret = 1;
+            switch(event.type) {
+                case xwin::EventType::Close:
+                    win.xwindow.close();
+                    ret = 1;
+                    break;
+                case xwin::EventType::Resize:
+
             }
 
             win.xqueue.pop();
@@ -99,10 +102,12 @@ void xmain(int argc, const char** argv)
 
 static std::vector<vk::SurfaceKHR> surfaces(10);
 
-void* mfly::win::getGAPISurface(void* gapi_instance, uint16_t window_handle)
+void* mfly::win::getGAPISurface(void* gapi_instance, uint32_t window_handle)
 {  
     xwin::Window* win = &mfly::win::windows[window_handle].xwindow;
     vk::Instance fin_inst = (vk::Instance)(VkInstance)gapi_instance;
 
     return (void*)(VkSurfaceKHR)xgfx::getSurface(win, fin_inst);
 }
+
+// TODO: Callback vectors + register funs?

@@ -80,7 +80,7 @@ uint16_t mfly::shaders::CreateGroup(uint16_t* shader_handles, uint64_t num_shade
     return 0;
 }
 
-uint16_t mfly::shaders::CompileGroups(bool optimization, int opt_level) {
+void mfly::shaders::CompileGroups(std::vector<ShaderByteCode>& fill, bool optimization, int opt_level) {
     for(auto shader_group : groups) {
         shaderc::CompileOptions options;
         const int s  = shader_group.defines.size();
@@ -117,13 +117,6 @@ uint16_t mfly::shaders::CompileGroups(bool optimization, int opt_level) {
 
     FlushShaders();
 
-    return 0;
-}
-
-
-uint64_t mfly::shaders::ReturnBytecode(std::vector<ShaderByteCode>& fill) {
-    uint64_t num = results.size();
     results.swap(fill);
     results.clear();
-    return num;
 }

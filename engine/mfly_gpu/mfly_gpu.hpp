@@ -4,23 +4,12 @@
 #include <stdint.h>
 #include <vulkan/vulkan.hpp>
 
-// UNDERSTAND MACRO TO DISABLE OPTIMIZATIONS IN VMKGL
-#ifdef MEM_OPTIMIZE
-#undef MEMOPT;
-#define MEMOPT(a) ;
-#define MEMOPT_ALT(a) a;
-#else
-#define MEMOPT(a) a;
-#undef MEMOPT_ALT;
-#define MEMOPT_ALT(a) ; 
-#endif
-
 namespace mfly
 {
     namespace gpu
     {
         // Module Functions
-        uint16_t DefaultInit();
+        uint32_t DefaultInit();
 
         // Function to gather Vulkan Instance possible Extensions
         struct VkPhysDeviceInfoWrap {
@@ -36,7 +25,7 @@ namespace mfly
             
             std::vector<VkExtensionProperties> available_exts;
         };
-        uint16_t InitVkInstance(VkInstanceInfoWrap& instance_info); // Startup Vulkan
+        uint32_t InitVkInstance(VkInstanceInfoWrap& instance_info); // Startup Vulkan
         
         struct VkLDeviceInfoWrap {
             std::vector<VkDeviceQueueCreateInfo> queues_info;
@@ -45,10 +34,9 @@ namespace mfly
             std::vector<const char*> exts;
             std::vector<void*> exts_info;
         };
-        uint16_t InitQueues(VkLDeviceInfoWrap& info, uint16_t phys_dvc_handle = 0);
+        uint32_t InitQueues(VkLDeviceInfoWrap& info, uint32_t phys_dvc_handle = 0);
         VkQueue RetrieveQueue(uint32_t device_handle, uint32_t family, uint32_t index);
         VkDevice GetLogicalDevice(uint32_t logical_dvc_handle);
-        uint16_t CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surface_handle, uint16_t logical_dvc_handle);
         
         struct VkFramebufferWrap {
             VkFramebuffer framebuffer;
@@ -58,30 +46,39 @@ namespace mfly
         struct VkSwapchainWrap
         {
             VkSwapchainKHR swapchain;
-            uint16_t logical_dvc_handle;
+            uint32_t logical_dvc_handle;
+            uint32_t surface_handle;
+            bool need_resize = false;
+
             std::vector<VkImage> images;
-            std::vector<uint32_t> img_view_handles;
+            std::vector<VkImageView> img_views;
             VkExtent2D area;
             uint32_t curr_image;
 
             VkSemaphore img_semaphore;
             VkFence img_fence;
 
-            std::vector<VkFramebufferWrap> framebuffers; // Should they be associated?
+            std::vector<VkFramebuffer> framebuffers; // Should be associated so that they are recreated with the swapchain
+            std::vector<VkFramebufferInfoWrap> fb_infos;
         };
+        
+        void TriggerResizeSwapchain(uint32_t swapchain_handle, VkExtent2D area);
+        uint32_t CreateSwapchain(VkSwapchainCreateInfoKHR info, uint32_t surface_handle, uint32_t logical_dvc_handle, uint32_t existing = UINT32_MAX);
+        void RecreateSwapchain(uint32_t swapchain_handle);
+        void DestroySwapchain(VkSwapchainWrap& swc_wrap);
         const VkSwapchainWrap RetrieveSwapchain(uint32_t swapchain_handle);
 
         struct VkShaderInfoWrap{
             uint32_t* bytecode;
             uint64_t code_size;
-            uint16_t existing_shader = UINT16_MAX;
+            uint32_t existing_shader = UINT32_MAX;
         };
         
         struct VkShaderStageInfoWrap {
             uint32_t start, end; // Uses 2 values for start and end when used in a bulk
             // Recreating a pipeline should be asking the previously created pipeline again...
             
-            uint16_t logical_dvc;
+            uint32_t logical_dvc;
             uint32_t stage;
             const char* name;
         };
@@ -153,7 +150,7 @@ namespace mfly
         };
 
         struct VkLayoutPipeStageInfoWrap {
-            uint16_t count = 0;
+            uint32_t count = 0;
             std::vector<uint32_t> descriptor_sets_handles; // Assume precreated
             std::vector<uint32_t> push_constants_handles; // Assume precreated
         };
@@ -183,7 +180,7 @@ namespace mfly
             uint32_t render_pass_handle;
         };
 
-        uint16_t CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info);
+        uint32_t CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info);
 
         struct VkFramebufferInfoWrap {
             uint32_t render_pass_handle;
@@ -192,7 +189,7 @@ namespace mfly
             uint32_t num_layers;
         };
         uint32_t AddFramebuffer(VkFramebufferInfoWrap fb_info, uint32_t existing = UINT32_MAX);
-        
+        uint32_t AddSWCFramebuffer(VkFramebufferInfoWrap info, uint32_t swapchain_handle, uint32_t existing = UINT32_MAX);
         // Not usable?
         struct VkAttachmentInfoWrap {
             uint32_t format = VK_FORMAT_R8G8B8A8_SRGB; // VkFormat...
@@ -236,8 +233,8 @@ namespace mfly
             std::vector<VkShaderStageInfoWrap> declares;
         };
 
-        uint16_t AddShader(VkShaderInfoWrap shader_info, uint16_t logical_dvc, uint32_t stage);
-        uint16_t* AddShaders(const VkShaderBulk& shader_bulk);
+        uint32_t AddShader(VkShaderInfoWrap shader_info, uint32_t logical_dvc, uint32_t stage);
+        uint32_t* AddShaders(const VkShaderBulk& shader_bulk);
 
         struct VkCmdPoolInfoWrap {
             uint32_t flags = 0; // VK_COMMAND_POOL_CREATE_TRANSIENT_BIT = commands are recorded frequently // VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT = commands recorded in entire group
@@ -280,14 +277,14 @@ namespace mfly
         /// *To be amplified with descriptors, descriptor sets, binding and whatever,
         /// Thus you should only need to call to draw a commandbuffer, which previously you've set its info 
 
-        uint16_t Close();
-        uint16_t PreUpdate();
-        uint16_t DoUpdate();
-        uint16_t PostUpdate();
-        uint16_t AsyncDispatch();
-        uint16_t AsyncGather();
+        uint32_t Close();
+        uint32_t PreUpdate();
+        uint32_t DoUpdate();
+        uint32_t PostUpdate();
+        uint32_t AsyncDispatch();
+        uint32_t AsyncGather();
 
-        //uint16_t event_code_start = 0;
+        //uint32_t event_code_start = 0;
 
         enum ERRORCODE
         {
@@ -300,7 +297,7 @@ namespace mfly
             "Good, move on.",
             "Something went wrong, message not set",
         }
-        const char* DebugMessage(uint16_t errorcode) {
+        const char* DebugMessage(uint32_t errorcode) {
             if(errorcode > (sizeof(debug_string)/sizeof(const char*)))
                 return debug_string[1];
             else
@@ -310,9 +307,9 @@ namespace mfly
 
         // Module Specifics
         /// void*: VkInstance the library provides and the window api most likely requires
-        /// uint16_t: Window number that we want a surface from (usually the main window - 0)
+        /// uint32_t: Window number that we want a surface from (usually the main window - 0)
         /// expected result: VkSurfaceKHR
-        typedef void*(*GetSurfaceFun)(void*, uint16_t);
+        typedef void*(*GetSurfaceFun)(void*, uint32_t);
         void ProvideSurfaceFun(GetSurfaceFun fun);
 
         struct VkMemInfoWrap {
@@ -321,8 +318,8 @@ namespace mfly
         };
         // Memory Allocation?
         struct VkDMEMHandles {
-            uint16_t logical_dvc_handle = 0;
-            uint16_t mem_handle = -1;
+            uint32_t logical_dvc_handle = 0;
+            uint32_t mem_handle = -1;
             uint32_t mem_info_handle = -1;
         };
         struct VkBufferInfoWrap {

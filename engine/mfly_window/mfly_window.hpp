@@ -53,7 +53,7 @@ namespace mfly
             uint8_t id = 0;
         };
         
-        void* getGAPISurface(void* gapi_instance, uint16_t window_handle);
+        void* getGAPISurface(void* gapi_instance, uint32_t window_handle);
         
     };
 };

@@ -41,17 +41,14 @@ namespace mfly
 
         // Generate Defines
         // Genearate Groups to be compiled with single options and defines
-        
-        uint16_t CompileGroups(bool optimization = false, int opt_level = 3);
-        uint16_t CompileSpecific(uint16_t* group_handles, uint64_t num_groups, bool optimization = true); // Compile Shaders and return SPIR-V bytecode representation
-        uint16_t FlushShaders();
-
         struct ShaderByteCode {
             std::vector<uint32_t> bytecode;
         };
-        // Requires initialized space, it will be moved in
-        uint64_t ReturnBytecode(std::vector<ShaderByteCode>& fill); // Return compiled shaders to tool that actually uses them
+        void CompileGroups(std::vector<ShaderByteCode>& fill, bool optimization = false, int opt_level = 3);
+        uint16_t CompileSpecific(uint16_t* group_handles, uint64_t num_groups, bool optimization = true); // Compile Shaders and return SPIR-V bytecode representation
+        uint16_t FlushShaders();
 
+        
         enum ERRORCODE
         {
             GOOD = 0,

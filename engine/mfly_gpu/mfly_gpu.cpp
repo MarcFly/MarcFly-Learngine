@@ -20,14 +20,14 @@ namespace mfly
         {
             VkBuffer buffer;
             std::vector<VkBufferView> views;
-            uint16_t mem_handle = -1;
+            uint32_t mem_handle = -1;
         };
 
         struct VkImageMemWrap
         {
             VkImage img;
             std::vector<uint32_t> view_handles;
-            uint16_t mem_handle = -1;
+            uint32_t mem_handle = -1;
         };
 
         struct VkAllocMemWrap
@@ -73,8 +73,7 @@ namespace mfly
         {
             VkInstance instance;
 
-            VkPhysicalDevice *phys_dvcs = nullptr;
-            uint32_t phys_dvc_count;
+            std::vector<VkPhysicalDevice> phys_dvcs;
             std::vector<VkDevice> logical_dvcs;
 
             std::vector<VkBufferMemWrap> buffers;
@@ -124,7 +123,7 @@ namespace mfly
             std::vector<VkMemInfoWrap> mem_allocs;
             std::vector<VkImageInfoWrap> imgs;
 
-        } MEMOPT(vkapp_info);
+        } vkapp_info;
 
     };
 };
@@ -146,12 +145,11 @@ namespace mfly
 // Good to specialize the queues -> Transfer, async,...
 // GPUInfo and tools by Sascha Willems https://github.com/SaschaWillems/Vulkan
 
-const char *device_extensions[] = {"VK_KHR_swapchain", "VK_KHR_synchronization2"};
 // GPUs have driver and isntalled extensions -> Varies from Device to instance
 // Much more per GPU than per instance *Ray Tracing for example)
 //
 
-uint16_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap &info)
+uint32_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap& info)
 {
 
     // Declare Vulkan application
@@ -179,30 +177,30 @@ uint16_t mfly::gpu::InitVkInstance(VkInstanceInfoWrap &info)
     assert(result == 0);
     printf("VkResult is: %d\n", result);
 
-    vkEnumeratePhysicalDevices(vkapp.instance, &vkapp.phys_dvc_count, nullptr);
-    vkapp.phys_dvcs = new VkPhysicalDevice[vkapp.phys_dvc_count];
-    vkEnumeratePhysicalDevices(vkapp.instance, &vkapp.phys_dvc_count, vkapp.phys_dvcs);
+    uint32_t phys_dvc_count;
+    vkEnumeratePhysicalDevices(vkapp.instance, &phys_dvc_count, nullptr);
+    vkapp.phys_dvcs.resize(phys_dvc_count);
+    vkEnumeratePhysicalDevices(vkapp.instance, &phys_dvc_count, vkapp.phys_dvcs.data());
 
     // DEBUG INFO
-    MEMOPT(
-        vkapp_info.info = info;
+    vkapp_info.info = info;
 
-        for (int i = 0; i < vkapp.phys_dvc_count; ++i) {
-            vkapp_info.p_dvcs.push_back(VkPhysDeviceInfoWrap());
-            VkPhysDeviceInfoWrap &dvc_info = vkapp_info.p_dvcs.back();
-            vkGetPhysicalDeviceProperties(vkapp.phys_dvcs[i], &dvc_info.properties);
-            vkGetPhysicalDeviceFeatures(vkapp.phys_dvcs[i], &dvc_info.features);
-        }
+    for (int i = 0; i < vkapp.phys_dvcs.size(); ++i) {
+        vkapp_info.p_dvcs.push_back(VkPhysDeviceInfoWrap());
+        VkPhysDeviceInfoWrap &dvc_info = vkapp_info.p_dvcs.back();
+        vkGetPhysicalDeviceProperties(vkapp.phys_dvcs[i], &dvc_info.properties);
+        vkGetPhysicalDeviceFeatures(vkapp.phys_dvcs[i], &dvc_info.features);
+    }
 
-        uint32_t ext_count = 0;
-        vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, nullptr);
-        vkapp_info.info.available_exts.resize(ext_count);
-        vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, vkapp_info.info.available_exts.data()););
+    uint32_t ext_count = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, nullptr);
+    vkapp_info.info.available_exts.resize(ext_count);
+    vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, vkapp_info.info.available_exts.data());
 
     return 0;
 }
 
-uint16_t mfly::gpu::InitQueues(VkLDeviceInfoWrap &info, uint16_t phys_dvc_handle)
+uint32_t mfly::gpu::InitQueues(VkLDeviceInfoWrap &info, uint32_t phys_dvc_handle)
 {
     uint32_t size = info.queues_info.size();
     info.queues_info.back().pQueuePriorities = info.prios.back().data();
@@ -238,8 +236,7 @@ uint16_t mfly::gpu::InitQueues(VkLDeviceInfoWrap &info, uint16_t phys_dvc_handle
     printf("VkResult is: %d\n", result);
 
     // DEBUG INFO
-    MEMOPT(
-        vkapp_info.l_dvcs.push_back(info);)
+    vkapp_info.l_dvcs.push_back(info);
 
     return 0;
 }
@@ -250,20 +247,25 @@ VkQueue mfly::gpu::RetrieveQueue(uint32_t device_handle, uint32_t family, uint32
     return ret;
 }
 
-uint16_t mfly::gpu::CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surface_handle, uint16_t logical_dvc_handle)
+uint32_t mfly::gpu::CreateSwapchain(VkSwapchainCreateInfoKHR info, uint32_t surface_handle, uint32_t logical_dvc_handle, uint32_t existing)
 {
+    uint32_t prev_val = existing;
+    existing = PushNonInvalid(vkapp.swapchains, existing);
+    bool recreate = existing != prev_val;
 
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     info.surface = vkapp.surfaces[surface_handle];
     // There are many more settings, research
 
-    vkapp.swapchains.push_back(VkSwapchainWrap());
-    uint16_t size = vkapp.swapchains.size();
-    VkSwapchainWrap &scw = vkapp.swapchains.back();
+    
+    VkSwapchainWrap &scw = vkapp.swapchains[existing];
     scw.logical_dvc_handle = logical_dvc_handle;
     VkDevice &dvc = vkapp.logical_dvcs[logical_dvc_handle];
     info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     vkCreateSwapchainKHR(dvc, &info, nullptr, &scw.swapchain);
+
+    scw.area = info.imageExtent;
+    scw.surface_handle = surface_handle;
 
     uint32_t img_count;
     vkGetSwapchainImagesKHR(dvc, scw.swapchain, &img_count, nullptr);
@@ -293,19 +295,72 @@ uint16_t mfly::gpu::CreateSwapchain(VkSwapchainCreateInfoKHR info, uint16_t surf
         view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         view_info.image = scw.images[i];
 
-        scw.img_view_handles.push_back(vkapp.img_views.size());
-        vkapp.img_views.push_back(VkImageView());
+        scw.img_views.push_back(VkImageView());
         
-        vkCreateImageView(dvc, &view_info, nullptr, &vkapp.img_views.back());
+        vkCreateImageView(dvc, &view_info, nullptr, &scw.img_views.back());
     }
 
     scw.img_semaphore = AddSemaphore();
 
     // DEBUG INFO
-    MEMOPT(
-        vkapp_info.swapchains.push_back(info);)
+    uint32_t info_id = PushNonInvalid(vkapp_info.swapchains, existing);
+    vkapp_info.swapchains.push_back(info);
 
-    return size;
+    return existing;
+}
+
+void mfly::gpu::TriggerResizeSwapchain(uint32_t swapchain_handle, VkExtent2D area) {
+    
+}
+
+void mfly::gpu::RecreateSwapchain(uint32_t swapchain_handle) {
+    VkDevice dvc = vkapp.logical_dvcs[0];
+    vkDeviceWaitIdle(dvc);
+
+    VkSwapchainWrap& swc_wrap = vkapp.swapchains[swapchain_handle];
+    swc_wrap.need_resize = false;
+
+    vkDestroySwapchainKHR(dvc, swc_wrap.swapchain, nullptr);
+
+    for (auto imgview : swc_wrap.img_views) {
+        vkDestroyImageView(dvc, imgview, nullptr);
+    }
+    swc_wrap.img_views.clear();
+
+    for (auto img : swc_wrap.images) {
+        vkDestroyImage(dvc, img, nullptr);
+    }
+    swc_wrap.images.clear();
+    
+    CreateSwapchain(vkapp_info.swapchains[swapchain_handle], swc_wrap.surface_handle, swc_wrap.logical_dvc_handle, swapchain_handle);
+    
+    // Now destroy and recreate framebuffers
+
+    for(int i = 0; i < swc_wrap.fb_infos.size(); ++i) {
+        AddSWCFramebuffer(swc_wrap.fb_infos[i], swapchain_handle, i);
+    }
+    // TODO: Recreate Renderpasses -> Image Change
+
+}
+
+void mfly::gpu::DestroySwapchain(VkSwapchainWrap& swc_wrap) {
+    VkDevice dvc = vkapp.logical_dvcs[0];
+    vkDestroySwapchainKHR(dvc, swc_wrap.swapchain, nullptr);
+
+    for (auto imgview : swc_wrap.img_views) {
+        vkDestroyImageView(dvc, imgview, nullptr);
+    }
+    swc_wrap.img_views.clear();
+
+    for (auto img : swc_wrap.images) {
+        vkDestroyImage(dvc, img, nullptr);
+    }
+    swc_wrap.images.clear();
+
+    for (auto fb : swc_wrap.framebuffers) {
+        vkDestroyFramebuffer(dvc, fb, nullptr);
+    }
+    swc_wrap.framebuffers.clear();
 }
 
 const mfly::gpu::VkSwapchainWrap mfly::gpu::RetrieveSwapchain(uint32_t swapchain_handle) { return vkapp.swapchains[swapchain_handle]; }
@@ -323,7 +378,7 @@ uint32_t mfly::gpu::CreateBuffer(VkBufferInfoWrap info)
     VkMemInfoWrap mem_info = {};
     vkGetBufferMemoryRequirements(dvc, buf.buffer, &mem_info.mem);
 
-    if (info.handles.mem_handle == UINT16_MAX)
+    if (info.handles.mem_handle == UINT32_MAX)
     {
         vkapp.mem.push_back(VkAllocMemWrap());
         info.handles.mem_handle = vkapp.mem.size() - 1;
@@ -341,9 +396,8 @@ uint32_t mfly::gpu::CreateBuffer(VkBufferInfoWrap info)
         // How do I deal with the memory allocation?
         // How should it be done, is the AMD VKMemoryAllocator good or better?
         // Is this something that is tied to th ebuffer and should be known always?
-        MEMOPT(
-            vkapp_info.mem_allocs.push_back(mem_info);
-            info.handles.mem_info_handle = vkapp_info.mem_allocs.size() - 1;)
+        vkapp_info.mem_allocs.push_back(mem_info);
+        info.handles.mem_info_handle = vkapp_info.mem_allocs.size() - 1;
     }
     else
     { // Using a known allocation
@@ -367,8 +421,8 @@ uint32_t mfly::gpu::CreateBuffer(VkBufferInfoWrap info)
     }
 
     // DEBUG INFO
-    MEMOPT(
-        vkapp_info.buffers.push_back(info);)
+    vkapp_info.buffers.push_back(info);
+
     return vkapp.buffers.size() - 1;
 }
 
@@ -387,7 +441,7 @@ uint32_t mfly::gpu::CreateImage(VkImageInfoWrap info)
     VkMemInfoWrap mem_info = {};
     vkGetImageMemoryRequirements(dvc, img.img, &mem_info.mem);
 
-    if (info.handles.mem_handle == UINT16_MAX)
+    if (info.handles.mem_handle == UINT32_MAX)
     {
         vkapp.mem.push_back(VkAllocMemWrap());
         info.handles.mem_handle = vkapp.mem.size() - 1;
@@ -405,9 +459,9 @@ uint32_t mfly::gpu::CreateImage(VkImageInfoWrap info)
         // How do I deal with the memory allocation?
         // How should it be done, is the AMD VKMemoryAllocator good or better?
         // Is this something that is tied to th ebuffer and should be known always?
-        MEMOPT(
-            vkapp_info.mem_allocs.push_back(mem_info);
-            info.handles.mem_info_handle = vkapp_info.mem_allocs.size() - 1;)
+        
+        vkapp_info.mem_allocs.push_back(mem_info);
+        info.handles.mem_info_handle = vkapp_info.mem_allocs.size() - 1;
     }
     else
     { // Using a known allocation
@@ -430,19 +484,18 @@ uint32_t mfly::gpu::CreateImage(VkImageInfoWrap info)
     }
 
     // DEBUG INFO
-    MEMOPT(
-        vkapp_info.imgs.push_back(info);)
+    vkapp_info.imgs.push_back(info);
 
     return vkapp.images.size() - 1;
 }
 
-uint16_t mfly::gpu:: AddShader(VkShaderInfoWrap shader_info, uint16_t logical_dvc, uint32_t stage) {
+uint32_t mfly::gpu:: AddShader(VkShaderInfoWrap shader_info, uint32_t logical_dvc, uint32_t stage) {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.codeSize = shader_info.code_size;
     create_info.pCode = shader_info.bytecode;
     
-    if(shader_info.existing_shader == UINT16_MAX) {
+    if(shader_info.existing_shader == UINT32_MAX) {
         vkapp.shaders.push_back(VkShaderModuleWrap());
         shader_info.existing_shader = vkapp.shaders.size()-1;
     }
@@ -450,7 +503,7 @@ uint16_t mfly::gpu:: AddShader(VkShaderInfoWrap shader_info, uint16_t logical_dv
     VkShaderModule tmp;
     VkResult res = vkCreateShaderModule(vkapp.logical_dvcs[logical_dvc], &create_info, nullptr, &tmp);
     if(res != VK_SUCCESS){
-        return UINT16_MAX;
+        return UINT32_MAX;
     }
     else {
         shader = tmp;
@@ -458,14 +511,14 @@ uint16_t mfly::gpu:: AddShader(VkShaderInfoWrap shader_info, uint16_t logical_dv
     }
 }
 
-uint16_t* mfly::gpu::AddShaders(const VkShaderBulk& shader_bulk) {
-    uint16_t* handles = new uint16_t[shader_bulk.shader_infos.size()];
+uint32_t* mfly::gpu::AddShaders(const VkShaderBulk& shader_bulk) {
+    uint32_t* handles = new uint32_t[shader_bulk.shader_infos.size()];
     uint32_t shader_num = vkapp.shaders.size();
     vkapp.shaders.reserve(vkapp.shaders.size() + shader_bulk.shader_infos.size());
     for(auto group : shader_bulk.declares) {
         for(int i = group.start; i < group.end; ++i){
-            uint16_t ret = AddShader(shader_bulk.shader_infos[i], group.logical_dvc, group.stage);
-            if(ret != UINT16_MAX) {
+            uint32_t ret = AddShader(shader_bulk.shader_infos[i], group.logical_dvc, group.stage);
+            if(ret != UINT32_MAX) {
                 VkShaderModuleWrap& shader = vkapp.shaders[ret];
                 shader.stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
                 shader.stage_info.pName = group.name;
@@ -480,7 +533,7 @@ uint16_t* mfly::gpu::AddShaders(const VkShaderBulk& shader_bulk) {
 
 template<class T>
 inline uint32_t PushNonInvalid(std::vector<T>& vec, uint32_t check_val) {
-    if(check_val == UINT32_MAX){
+    if(check_val > vec.size()-1){
         vec.push_back(T());
         check_val = vec.size()-1;
     }
@@ -514,6 +567,38 @@ uint32_t mfly::gpu::AddFramebuffer(VkFramebufferInfoWrap info, uint32_t existing
     // TODO: select logical device
     VkResult res = vkCreateFramebuffer(vkapp.logical_dvcs[0], &create_info, nullptr, &fb_wrap.framebuffer);
     if(res != VK_SUCCESS) printf("Failed to create framebuffer");
+
+    return existing;
+}
+
+uint32_t mfly::gpu::AddSWCFramebuffer(VkFramebufferInfoWrap info, uint32_t swapchain_handle, uint32_t existing) {
+    uint32_t prev_val = existing;
+    VkSwapchainWrap& swc_wrap = vkapp.swapchains[swapchain_handle];
+    
+    existing = PushNonInvalid(swc_wrap.framebuffers, existing);
+    VkFramebuffer& fb = swc_wrap.framebuffers[existing];
+    if(prev_val == existing) vkDestroyFramebuffer(vkapp.logical_dvcs[0], fb,nullptr);
+
+    VkFramebufferCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    
+    create_info.attachmentCount = swc_wrap.img_views.size();
+    create_info.pAttachments = swc_wrap.img_views.data();
+    create_info.width = info.extent.width;
+    create_info.height = info.extent.height;
+    create_info.layers = info.num_layers;
+    create_info.renderPass = vkapp.render_passes[info.render_pass_handle];
+
+    // TODO: select logical device
+    VkResult res = vkCreateFramebuffer(vkapp.logical_dvcs[0], &create_info, nullptr, &fb);
+    if(res != VK_SUCCESS) printf("Failed to create framebuffer");
+
+    uint32_t info_existing = PushNonInvalid(swc_wrap.fb_infos, existing);
+    VkFramebufferInfoWrap& fb_info = swc_wrap.fb_infos[info_existing];
+    fb_info.extent = info.extent;
+    fb_info.img_view_handles.swap(info.img_view_handles);
+    fb_info.num_layers = info.num_layers;
+    fb_info.render_pass_handle;
 
     return existing;
 }
@@ -619,7 +704,7 @@ uint32_t mfly::gpu::CreateRenderPass(VkRenderPassInfoWrap info, uint32_t existin
     return vkapp.render_passes.size()-1; // Always return, if it failed, you have to repair it or will crash somewhere else
 }
 
-uint16_t mfly::gpu::CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info) {
+uint32_t mfly::gpu::CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info) {
     VkPipelineVertexInputStateCreateInfo vtx_info = {};
     vtx_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     // Function to set descriptors from binding descriptors and attribute descriptors
@@ -891,9 +976,9 @@ VkFence mfly::gpu::AddFence() {
 }
 
 // Module Basics
-uint16_t mfly::gpu::DefaultInit()
+uint32_t mfly::gpu::DefaultInit()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     VkInstanceInfoWrap app_info;
     app_info.exts.push_back("VK_KHR_surface");
@@ -952,12 +1037,12 @@ uint16_t mfly::gpu::DefaultInit()
     swapchain_info.imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
     swapchain_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchain_info.compositeAlpha = VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchain_info.imageExtent = VkExtent2D{1540, 845};
+    swapchain_info.imageExtent = VkExtent2D{2560, 1440};
     swapchain_info.imageArrayLayers = 1;
     swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchain_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR; // VK_PRESENT_MODE_MAILBOX_KHR; // The good one
 
-    uint16_t sch_handle = CreateSwapchain(swapchain_info, 0, 0);
+    uint32_t sch_handle = CreateSwapchain(swapchain_info, 0, 0);
 
     // Swapchain requires a set of framebuffers and attachments to draw too
     // Requires a vec of Framebuffers and their respecitve imageviews
@@ -1022,15 +1107,14 @@ uint16_t mfly::gpu::DefaultInit()
     CreateImage(img_info);
 
     // DEBUG INFO
-    MEMOPT(
-        VkAppInfo &t_info = vkapp_info;)
+    VkAppInfo &t_info = vkapp_info;
 
     return ret;
 }
 
-uint16_t mfly::gpu::Close()
+uint32_t mfly::gpu::Close()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     for(auto dvc : vkapp.logical_dvcs){
         vkDeviceWaitIdle(dvc);
@@ -1066,7 +1150,7 @@ uint16_t mfly::gpu::Close()
     }
 
     for (auto scw : vkapp.swapchains) {
-        vkDestroySwapchainKHR(vkapp.logical_dvcs[scw.logical_dvc_handle], scw.swapchain, nullptr);
+        DestroySwapchain(scw);
     }
     
     {
@@ -1092,7 +1176,7 @@ uint16_t mfly::gpu::Close()
         vkDestroyDevice(dvc, nullptr);
     }
 
-    delete[] vkapp.phys_dvcs; // memleak...
+    vkapp.phys_dvcs.clear(); // memleak...
     
     vkDestroyInstance(vkapp.instance, nullptr);
     return ret;
@@ -1100,20 +1184,24 @@ uint16_t mfly::gpu::Close()
 
 // temporary variables
 
-uint16_t mfly::gpu::PreUpdate()
+uint32_t mfly::gpu::PreUpdate()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     // Acquire image to draw on
-    for (auto sc_wrap : vkapp.swapchains)
-    {
-        VkResult res = vkAcquireNextImageKHR(vkapp.logical_dvcs[0], sc_wrap.swapchain,
+    for(int i = 0; i < vkapp.swapchains.size(); ++i)
+    {   
+        VkSwapchainWrap& swc_wrap = vkapp.swapchains[i];
+        if(swc_wrap.need_resize) RecreateSwapchain(i);
+        VkResult res = vkAcquireNextImageKHR(vkapp.logical_dvcs[0], swc_wrap.swapchain,
                               UINT64_MAX,            // Max time to wait for image (usually as much as possible)
-                              sc_wrap.img_semaphore, // Signal when acquired -> Wait on GPU
+                              swc_wrap.img_semaphore, // Signal when acquired -> Wait on GPU
                               VK_NULL_HANDLE,     // Signal when acquired -> Wait on CPU // Not needed for now
-                              &sc_wrap.curr_image);  // Which image to use from the handles of images in the swapchain
+                              &swc_wrap.curr_image);  // Which image to use from the handles of images in the swapchain
                               
-
+        if(res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR)
+            RecreateSwapchain(i);
+        
     }
     // Further Explanation on Semaphores and Fences
     // BINARY Semaphores are GPU Signals, it is sent to Vulkan for a task to signal when finish
@@ -1127,30 +1215,30 @@ uint16_t mfly::gpu::PreUpdate()
     return ret;
 }
 
-uint16_t mfly::gpu::DoUpdate()
+uint32_t mfly::gpu::DoUpdate()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     return ret;
 }
 
-uint16_t mfly::gpu::PostUpdate()
+uint32_t mfly::gpu::PostUpdate()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     return ret;
 }
 
-uint16_t mfly::gpu::AsyncDispatch()
+uint32_t mfly::gpu::AsyncDispatch()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     return ret;
 }
 
-uint16_t mfly::gpu::AsyncGather()
+uint32_t mfly::gpu::AsyncGather()
 {
-    uint16_t ret = 0;
+    uint32_t ret = 0;
 
     return ret;
 }

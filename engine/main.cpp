@@ -27,12 +27,12 @@ layout(location = 0) out vec4 outColor; \
 void main() { \
     outColor = vec4(fragColor, 1.0);}"
     };
-uint16_t* shader_handles = nullptr;
-uint32_t num_handles = 0;
+
+std::vector<uint32_t> shader_handles;
 
 void TestShaderLib() {
-   mfly::shaders::AddDefines("MY_DEFINE", "1");
-
+    mfly::shaders::AddDefines("MY_DEFINE", "1");
+    
     
     mfly::shaders::Shader raw_s[2];
     raw_s[0].code = shaders[0];
@@ -44,15 +44,21 @@ void TestShaderLib() {
     uint16_t d_h = 0;
     
     mfly::shaders::CreateGroup(s_h, 2, &d_h, 1);
-    mfly::shaders::CompileGroups();
-    std::vector<mfly::shaders::ShaderByteCode> bytecodes(2);
-    mfly::shaders::ReturnBytecode(bytecodes);
-
+    std::vector<mfly::shaders::ShaderByteCode> bytecodes;
+    mfly::shaders::CompileGroups(bytecodes);
+    
     mfly::gpu::VkShaderBulk bulk;
 
     mfly::gpu::VkShaderInfoWrap shader1;
     shader1.bytecode = bytecodes[0].bytecode.data();
     shader1.code_size = bytecodes[0].bytecode.size() * sizeof(uint32_t);
+    
+    mfly::gpu::VkShaderInfoWrap shader2;
+    shader2.bytecode = bytecodes[1].bytecode.data();
+    shader2.code_size = bytecodes[1].bytecode.size() * sizeof(uint32_t);
+
+    // A stages is for declaring as said, stages, VERTEX/FRAGMENT,...
+    // So have to at which number of the vector they start and when to end in the vector
     mfly::gpu::VkShaderStageInfoWrap stage1;
     stage1.start = -1 + (stage1.end = 1);
     stage1.logical_dvc = 0;
@@ -60,9 +66,6 @@ void TestShaderLib() {
     bulk.shader_infos.push_back(shader1);
     bulk.declares.push_back(stage1);
 
-    mfly::gpu::VkShaderInfoWrap shader2;
-    shader2.bytecode = bytecodes[1].bytecode.data();
-    shader2.code_size = bytecodes[1].bytecode.size() * sizeof(uint32_t);
     mfly::gpu::VkShaderStageInfoWrap stage2;
     stage2.start = -1 + (stage2.end = 2);
     stage2.logical_dvc = 0;
@@ -70,9 +73,10 @@ void TestShaderLib() {
     bulk.shader_infos.push_back(shader2);
     bulk.declares.push_back(stage2);
     
-    shader_handles = mfly::gpu::AddShaders(bulk);
-    num_handles = bulk.shader_infos.size();
-
+    shader_handles.resize(bulk.shader_infos.size());
+    uint32_t* handles_p = mfly::gpu::AddShaders(bulk);
+    memcpy(shader_handles.data(), handles_p, sizeof(uint32_t)*bulk.shader_infos.size());
+    delete handles_p;
     bool test_empty_str = false;
 }
 
@@ -109,21 +113,18 @@ void TestCreateGraphicsPipeline() {
     //render_pass.attachment_handles.push_back(3);
     render_pass.subpass_handles.push_back(0);
     uint32_t rp_handle = mfly::gpu::CreateRenderPass(render_pass);
-    mfly::gpu::VkFramebufferInfoWrap fb_info;
-    fb_info.extent.width = 1540;
-    fb_info.extent.height = 845;
 
-    const mfly::gpu::VkSwapchainWrap& swc_wrap = mfly::gpu::RetrieveSwapchain(0);
-    for(int i = 0; i < swc_wrap.img_view_handles.size(); ++i) {
-        fb_info.img_view_handles.push_back(swc_wrap.img_view_handles[i]);
-    }
+    const mfly::gpu::VkSwapchainWrap& swc_wrap = mfly::gpu::RetrieveSwapchain(0);   
+
+    mfly::gpu::VkFramebufferInfoWrap fb_info;
+    fb_info.extent.width = swc_wrap.area.width;
+    fb_info.extent.height = swc_wrap.area.height;
 
     //fb_info.img_view_handles.push_back(0); // For now use the only image created
     fb_info.num_layers = 1;
     fb_info.render_pass_handle = rp_handle;
     
-    mfly::gpu::AddFramebuffer(fb_info);
-
+    mfly::gpu::AddSWCFramebuffer(fb_info, 0 );
     mfly::gpu::VkGraphicsPipeStateInfoWrap default_pipe;
     default_pipe.name = "main"; // Function name to execute, so fucking bad, make always main and that's it ffs
     default_pipe.render_pass_handle = 0;
@@ -134,12 +135,12 @@ void TestCreateGraphicsPipeline() {
     VkViewport vp = {};
     vp.x = vp.y = vp.minDepth = 0.0f;
     vp.maxDepth = 1.0f;
-    vp.width = 1540.0f;
-    vp.height = 845.0f;
+    vp.width = swc_wrap.area.width;
+    vp.height = swc_wrap.area.height;
     // Will not render correctly but its to test
     VkRect2D scissor = {};
     scissor.offset = {0,0};
-    scissor.extent = {1540,845};
+    scissor.extent = {swc_wrap.area.width,swc_wrap.area.height};
 
     default_pipe.scissors.push_back(scissor);
     default_pipe.viewports.push_back(vp);
@@ -160,7 +161,7 @@ void TestCreateGraphicsPipeline() {
     //begin_rp_info.clear_colors.push_back(VkClearValue{1.,0.,0.,1.});
     //begin_rp_info.clear_colors.push_back(VkClearValue{1.,0.,0.,1.});
     //begin_rp_info.clear_colors.push_back(VkClearValue{1.,0.,0.,1.});
-    begin_rp_info.extent = {1540, 845};
+    begin_rp_info.extent = {swc_wrap.area.width, swc_wrap.area.height};
     begin_rp_info.offset = {0,0};
     begin_rp_info.framebuffer_handle = 0;
     begin_rp_info.render_pass_handle = 0;
@@ -199,9 +200,9 @@ int main(int argc, const char** argv)
         // Actually draw
         VkDevice dvc = mfly::gpu::GetLogicalDevice(0);
         vkWaitForFences(dvc, 1, &frame_in_flight, true, UINT64_MAX);
-        vkResetFences(dvc, 1, &frame_in_flight);
         mfly::gpu::PreUpdate(); // Preupdate should handle frames in flight too
-
+        vkResetFences(dvc, 1, &frame_in_flight);
+        
         // Between preupdate and update one should do the begin record end record
         
         // Update then does the submits
