@@ -3,7 +3,12 @@
 #include <CrossWindow/Graphics.h>
 
 extern enki::TaskScheduler enki_TS;
-namespace mfly { namespace win { std::vector<mfly::win::window> windows; }}
+namespace mfly { 
+    namespace win { 
+        std::vector<mfly::win::window> windows; 
+        std::vector<ResizeCallback> resize_callbacks;
+    }
+}
 
 // Module Basics
 uint16_t mfly::win::Init()
@@ -47,6 +52,11 @@ uint16_t mfly::win::PreUpdate()
                     ret = 1;
                     break;
                 case xwin::EventType::Resize:
+                    xwin::UVec2 size_win = win.xwindow.getWindowSize();
+                    
+                    for(auto cb : resize_callbacks) {
+                        cb(i, size_win.x, size_win.y);
+                    }
 
             }
 
@@ -111,3 +121,5 @@ void* mfly::win::getGAPISurface(void* gapi_instance, uint32_t window_handle)
 }
 
 // TODO: Callback vectors + register funs?
+
+void mfly::win::RegisterResizeCallback(ResizeCallback resize_fun) { resize_callbacks.push_back(resize_fun); }

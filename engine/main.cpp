@@ -82,13 +82,13 @@ void TestShaderLib() {
 
 #include<vulkan/vulkan.hpp>
 VkSemaphore img_available;
-VkSemaphore render_finished;
+std::pair<uint32_t, VkSemaphore> render_finished;
 VkFence frame_in_flight;
 
 void TestCreateGraphicsPipeline() {
-    img_available = mfly::gpu::AddSemaphore();
-    render_finished = mfly::gpu::AddSemaphore();
-    frame_in_flight = mfly::gpu::AddFence();
+    //img_available = mfly::gpu::AddSemaphore();
+    render_finished = mfly::gpu::AddSemaphore(UINT32_MAX);
+    //frame_in_flight = mfly::gpu::AddFence();
 
     // Add Subpass and attachment
     mfly::gpu::VkAttachmentInfoWrap attachment_info;
@@ -191,7 +191,7 @@ int main(int argc, const char** argv)
     
     TestShaderLib();
     TestCreateGraphicsPipeline();
-    
+    mfly::win::RegisterResizeCallback([](uint32_t i, float w, float h){mfly::gpu::TriggerResizeSwapchain(i, VkExtent2D{(uint32_t)w,(uint32_t)h});});
 
     printf("Press [Enter] to close...\n");
     while(!mfly::win::PreUpdate())
@@ -199,9 +199,7 @@ int main(int argc, const char** argv)
 
         // Actually draw
         VkDevice dvc = mfly::gpu::GetLogicalDevice(0);
-        vkWaitForFences(dvc, 1, &frame_in_flight, true, UINT64_MAX);
         mfly::gpu::PreUpdate(); // Preupdate should handle frames in flight too
-        vkResetFences(dvc, 1, &frame_in_flight);
         
         // Between preupdate and update one should do the begin record end record
         
@@ -227,7 +225,7 @@ int main(int argc, const char** argv)
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &cmd_buf;
 
-        VkSemaphore signal_semaphores[] = {render_finished};
+        VkSemaphore signal_semaphores[] = {render_finished.second};
         submit_info.pSignalSemaphores = signal_semaphores;
         submit_info.signalSemaphoreCount = 1;
 

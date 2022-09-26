@@ -43,6 +43,13 @@ namespace mfly
             uint32_t img_view_handle;
         };
 
+        struct VkFramebufferInfoWrap {
+            uint32_t render_pass_handle;
+            std::vector<uint32_t> img_view_handles; // Framebuffers are linked to previously created IMAGES (agora sim entendo)
+            VkExtent2D extent;
+            uint32_t num_layers;
+        };
+
         struct VkSwapchainWrap
         {
             VkSwapchainKHR swapchain;
@@ -55,11 +62,13 @@ namespace mfly
             VkExtent2D area;
             uint32_t curr_image;
 
+            uint32_t img_semaphore_h = UINT32_MAX;
             VkSemaphore img_semaphore;
+            uint32_t img_fence_h = UINT32_MAX;
             VkFence img_fence;
 
-            std::vector<VkFramebuffer> framebuffers; // Should be associated so that they are recreated with the swapchain
-            std::vector<VkFramebufferInfoWrap> fb_infos;
+            std::vector<uint32_t> framebuffers; // Should be associated so that they are recreated with the swapchain
+            std::vector<uint32_t> fb_infos;
         };
         
         void TriggerResizeSwapchain(uint32_t swapchain_handle, VkExtent2D area);
@@ -182,14 +191,9 @@ namespace mfly
 
         uint32_t CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info);
 
-        struct VkFramebufferInfoWrap {
-            uint32_t render_pass_handle;
-            std::vector<uint32_t> img_view_handles; // Framebuffers are linked to previously created IMAGES (agora sim entendo)
-            VkExtent2D extent;
-            uint32_t num_layers;
-        };
         uint32_t AddFramebuffer(VkFramebufferInfoWrap fb_info, uint32_t existing = UINT32_MAX);
         uint32_t AddSWCFramebuffer(VkFramebufferInfoWrap info, uint32_t swapchain_handle, uint32_t existing = UINT32_MAX);
+        
         // Not usable?
         struct VkAttachmentInfoWrap {
             uint32_t format = VK_FORMAT_R8G8B8A8_SRGB; // VkFormat...
@@ -336,8 +340,8 @@ namespace mfly
         };
         uint32_t CreateImage(VkImageInfoWrap info);
 
-        VkSemaphore AddSemaphore();
-        VkFence AddFence();
+        std::pair<uint32_t, VkSemaphore> AddSemaphore(uint32_t existing);
+        std::pair<uint32_t, VkFence> AddFence(uint32_t existing);
 
     };
 };

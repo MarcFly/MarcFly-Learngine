@@ -55,6 +55,10 @@ namespace mfly
         
         void* getGAPISurface(void* gapi_instance, uint32_t window_handle);
         
+
+        // Callback Registers
+        typedef void (*ResizeCallback)(uint32_t, float, float);
+        void RegisterResizeCallback(ResizeCallback resize_fun);
     };
 };
 
