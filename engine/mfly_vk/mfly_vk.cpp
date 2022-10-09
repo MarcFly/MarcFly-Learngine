@@ -45,19 +45,7 @@ namespace mfly
 
 // GPUs have driver and isntalled extensions -> Varies from Device to instance
 // Much more per GPU than per instance *Ray Tracing for example)
-//
 
-
-
-uint32_t mfly::vk::BindPipeline(uint32_t pipeline_handle, VkCommandBuffer cmd_buf) {
-    VkGraphicsPipelineWrap pipe = vkapp.graphic_pipes[pipeline_handle];
-
-    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe.pipe);
-
-      
-
-    return 0;
-}
 
 std::pair<uint32_t, VkSemaphore> mfly::vk::AddSemaphore(uint32_t existing) {
     uint32_t prev_val = existing;

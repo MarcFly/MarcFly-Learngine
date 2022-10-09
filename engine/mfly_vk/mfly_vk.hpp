@@ -22,7 +22,6 @@ namespace mfly::vk
         
         // When adding commands seems like everyone requires the same commandbuffer
         // Would be sensible to pass the actual data instead of a handle to avoid fetches to foreign memory?
-        uint32_t BindPipeline(uint32_t pipeline_handle, VkCommandBuffer cmd_buf); // Right now only graphic pipelines...
         uint32_t Close();
         uint32_t PreUpdate();
         uint32_t DoUpdate();

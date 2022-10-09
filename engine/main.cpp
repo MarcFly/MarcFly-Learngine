@@ -212,7 +212,7 @@ int main(int argc, const char** argv)
 
         VkCommandBuffer cmd_buf = mfly::vk::BeginRecord(0, 0);
         mfly::vk::BeginRenderPass(0, cmd_buf);
-        mfly::vk::BindPipeline(0, cmd_buf);
+        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, vkapp.graphic_pipes[0].pipe);
         mfly::vk::SetDynState(cmd_buf);
         vkCmdDraw(cmd_buf, 3, 1, 0,0);
         vkCmdEndRenderPass(cmd_buf);
