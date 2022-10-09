@@ -8,7 +8,7 @@ enki::TaskScheduler enki_TS;
 #include <iostream>
 
 #include <mfly_window/mfly_window.hpp>
-#include <mfly_gpu/mfly_gpu.hpp>
+#include <mfly_vk/mfly_vk.hpp>
 #include <mfly_shaders/mfly_shaders.hpp>
 #include <sque_timer.h>
 
@@ -47,26 +47,26 @@ void TestShaderLib() {
     std::vector<mfly::shaders::ShaderByteCode> bytecodes;
     mfly::shaders::CompileGroups(bytecodes);
     
-    mfly::gpu::VkShaderBulk bulk;
+    mfly::vk::VkShaderBulk bulk;
 
-    mfly::gpu::VkShaderInfoWrap shader1;
+    mfly::vk::VkShader_InitInfo shader1;
     shader1.bytecode = bytecodes[0].bytecode.data();
     shader1.code_size = bytecodes[0].bytecode.size() * sizeof(uint32_t);
     
-    mfly::gpu::VkShaderInfoWrap shader2;
+    mfly::vk::VkShader_InitInfo shader2;
     shader2.bytecode = bytecodes[1].bytecode.data();
     shader2.code_size = bytecodes[1].bytecode.size() * sizeof(uint32_t);
 
     // A stages is for declaring as said, stages, VERTEX/FRAGMENT,...
     // So have to at which number of the vector they start and when to end in the vector
-    mfly::gpu::VkShaderStageInfoWrap stage1;
+    mfly::vk::VkShaderStage_InitInfo stage1;
     stage1.start = -1 + (stage1.end = 1);
     stage1.logical_dvc = 0;
     stage1.stage = VK_SHADER_STAGE_VERTEX_BIT;
     bulk.shader_infos.push_back(shader1);
     bulk.declares.push_back(stage1);
 
-    mfly::gpu::VkShaderStageInfoWrap stage2;
+    mfly::vk::VkShaderStage_InitInfo stage2;
     stage2.start = -1 + (stage2.end = 2);
     stage2.logical_dvc = 0;
     stage2.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -74,7 +74,7 @@ void TestShaderLib() {
     bulk.declares.push_back(stage2);
     
     shader_handles.resize(bulk.shader_infos.size());
-    uint32_t* handles_p = mfly::gpu::AddShaders(bulk);
+    uint32_t* handles_p = mfly::vk::AddShaders(bulk);
     memcpy(shader_handles.data(), handles_p, sizeof(uint32_t)*bulk.shader_infos.size());
     delete handles_p;
     bool test_empty_str = false;
@@ -86,37 +86,37 @@ std::pair<uint32_t, VkSemaphore> render_finished;
 VkFence frame_in_flight;
 
 void TestCreateGraphicsPipeline() {
-    //img_available = mfly::gpu::AddSemaphore();
-    render_finished = mfly::gpu::AddSemaphore(UINT32_MAX);
-    //frame_in_flight = mfly::gpu::AddFence();
+    //img_available = mfly::vk::AddSemaphore();
+    render_finished = mfly::vk::AddSemaphore(UINT32_MAX);
+    //frame_in_flight = mfly::vk::AddFence();
 
     // Add Subpass and attachment
-    mfly::gpu::VkAttachmentInfoWrap attachment_info;
-    mfly::gpu::AddAttachmentDesc(attachment_info);
-    //mfly::gpu::AddAttachmentDesc(attachment_info);
-    //mfly::gpu::AddAttachmentDesc(attachment_info);
-    //mfly::gpu::AddAttachmentDesc(attachment_info);
+    mfly::vk::VkAttachmentInfoWrap attachment_info;
+    mfly::vk::AddAttachmentDesc(attachment_info);
+    //mfly::vk::AddAttachmentDesc(attachment_info);
+    //mfly::vk::AddAttachmentDesc(attachment_info);
+    //mfly::vk::AddAttachmentDesc(attachment_info);
     
 
-    mfly::gpu::VkSubPassInfoWrap subpass_info;
+    mfly::vk::VkSubPassInfoWrap subpass_info;
     subpass_info.framebuffers.push_back(VkAttachmentReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
     //subpass_info.framebuffers.push_back(VkAttachmentReference{1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
     //subpass_info.framebuffers.push_back(VkAttachmentReference{2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
     //subpass_info.framebuffers.push_back(VkAttachmentReference{3, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
     
-    mfly::gpu::AddSubPass(subpass_info);
+    mfly::vk::AddSubPass(subpass_info);
 
-    mfly::gpu::VkRenderPassInfoWrap render_pass;
+    mfly::vk::VkRenderPassInfoWrap render_pass;
     render_pass.attachment_handles.push_back(0);
     //render_pass.attachment_handles.push_back(1);
     //render_pass.attachment_handles.push_back(2);
     //render_pass.attachment_handles.push_back(3);
     render_pass.subpass_handles.push_back(0);
-    uint32_t rp_handle = mfly::gpu::CreateRenderPass(render_pass);
+    uint32_t rp_handle = mfly::vk::CreateRenderPass(render_pass);
 
-    const mfly::gpu::VkSwapchainWrap& swc_wrap = mfly::gpu::RetrieveSwapchain(0);   
+    const mfly::vk::VkSwapchainWrap& swc_wrap = vkapp.swapchains[0];   
 
-    mfly::gpu::VkFramebufferInfoWrap fb_info;
+    mfly::vk::VkFramebufferInfoWrap fb_info;
     fb_info.extent.width = swc_wrap.area.width;
     fb_info.extent.height = swc_wrap.area.height;
 
@@ -124,8 +124,8 @@ void TestCreateGraphicsPipeline() {
     fb_info.num_layers = 1;
     fb_info.render_pass_handle = rp_handle;
     
-    mfly::gpu::AddSWCFramebuffer(fb_info, 0 );
-    mfly::gpu::VkGraphicsPipeStateInfoWrap default_pipe;
+    mfly::vk::AddSWCFramebuffer(fb_info, 0 );
+    mfly::vk::VkGraphicsPipeStateInfoWrap default_pipe;
     default_pipe.name = "main"; // Function name to execute, so fucking bad, make always main and that's it ffs
     default_pipe.render_pass_handle = 0;
     
@@ -150,13 +150,13 @@ void TestCreateGraphicsPipeline() {
 
     default_pipe.shaders.push_back(shader_handles[0]);
     default_pipe.shaders.push_back(shader_handles[1]);
-    default_pipe.blend_info.attachments.push_back(mfly::gpu::ColorBlendInfo());
+    default_pipe.blend_info.attachments.push_back(mfly::vk::ColorBlendInfo());
 
-    mfly::gpu::CreateGraphicsPipeline(default_pipe);
+    mfly::vk::CreateGraphicsPipeline(default_pipe);
 
-    mfly::gpu::VkBeginInfoWrap begin_info;
-    mfly::gpu::AddRecordBegin(begin_info);
-    mfly::gpu::VkBeginRenderPassInfoWrap begin_rp_info;
+    mfly::vk::VkBeginInfoWrap begin_info;
+    mfly::vk::AddRecordBegin(begin_info);
+    mfly::vk::VkBeginRenderPassInfoWrap begin_rp_info;
     begin_rp_info.clear_colors.push_back(VkClearValue{{{1.f,0.f,0.f,1.f}}});
     //begin_rp_info.clear_colors.push_back(VkClearValue{1.,0.,0.,1.});
     //begin_rp_info.clear_colors.push_back(VkClearValue{1.,0.,0.,1.});
@@ -165,54 +165,59 @@ void TestCreateGraphicsPipeline() {
     begin_rp_info.offset = {0,0};
     begin_rp_info.framebuffer_handle = 0;
     begin_rp_info.render_pass_handle = 0;
-    mfly::gpu::AddRenderPassBegin(begin_rp_info);
+    mfly::vk::AddRenderPassBegin(begin_rp_info);
 
-    mfly::gpu::VkCmdPoolInfoWrap cmd_pool_info;
+    mfly::vk::VkCmdPoolInfoWrap cmd_pool_info;
     cmd_pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    mfly::gpu::AddCmdPool(cmd_pool_info);
+    mfly::vk::AddCmdPool(cmd_pool_info);
 
-    mfly::gpu::VkCmdBufInfoWrap cmd_buf_info;
+    mfly::vk::VkCmdBufInfoWrap cmd_buf_info;
     cmd_buf_info.pool_handle = 0;
 
-    mfly::gpu::AddCmdBuffers(cmd_buf_info);
+    mfly::vk::AddCmdBuffers(cmd_buf_info);
 }
 
 
+#include <mfly_slotmap.h>
+
 int main(int argc, const char** argv)
 {
+    mfly::slotmap<uint32_t> example;
+    example;
+
     InitTimer();
     CalibrateTimer();
 
     enki_TS.Initialize();
     mfly::win::Init();
 
-    mfly::gpu::ProvideSurfaceFun(mfly::win::getGAPISurface);
-    mfly::gpu::DefaultInit();
+    mfly::vk::ProvideSurfaceFun(mfly::win::getGAPISurface);
+    mfly::vk::DefaultInit();
     
     TestShaderLib();
     TestCreateGraphicsPipeline();
-    mfly::win::RegisterResizeCallback([](uint32_t i, float w, float h){mfly::gpu::TriggerResizeSwapchain(i, VkExtent2D{(uint32_t)w,(uint32_t)h});});
+    mfly::win::RegisterResizeCallback([](uint32_t i, float w, float h){mfly::vk::TriggerResizeSwapchain(i, VkExtent2D{(uint32_t)w,(uint32_t)h});});
 
     printf("Press [Enter] to close...\n");
     while(!mfly::win::PreUpdate())
     {   
 
         // Actually draw
-        VkDevice dvc = mfly::gpu::GetLogicalDevice(0);
-        mfly::gpu::PreUpdate(); // Preupdate should handle frames in flight too
+        VkDevice dvc = vkapp.logical_dvcs[0];
+        mfly::vk::PreUpdate(); // Preupdate should handle frames in flight too
         
         // Between preupdate and update one should do the begin record end record
         
         // Update then does the submits
 
-        VkCommandBuffer cmd_buf = mfly::gpu::BeginRecord(0, 0);
-        mfly::gpu::BeginRenderPass(0, cmd_buf);
-        mfly::gpu::BindPipeline(0, cmd_buf);
-        mfly::gpu::SetDynState(cmd_buf);
+        VkCommandBuffer cmd_buf = mfly::vk::BeginRecord(0, 0);
+        mfly::vk::BeginRenderPass(0, cmd_buf);
+        mfly::vk::BindPipeline(0, cmd_buf);
+        mfly::vk::SetDynState(cmd_buf);
         vkCmdDraw(cmd_buf, 3, 1, 0,0);
         vkCmdEndRenderPass(cmd_buf);
         if(vkEndCommandBuffer(cmd_buf) != VK_SUCCESS) printf("Failed to record cmdbuffer");
-        const mfly::gpu::VkSwapchainWrap& swc_wrap = mfly::gpu::RetrieveSwapchain(0);
+        const mfly::vk::VkSwapchainWrap& swc_wrap = vkapp.swapchains[0];
 
         VkSubmitInfo submit_info = {};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -229,7 +234,8 @@ int main(int argc, const char** argv)
         submit_info.pSignalSemaphores = signal_semaphores;
         submit_info.signalSemaphoreCount = 1;
 
-        VkQueue present_queue = mfly::gpu::RetrieveQueue(0,0,0);
+        VkQueue present_queue;
+        vkGetDeviceQueue(dvc, 0,0, &present_queue);
         VkResult res = vkQueueSubmit( present_queue, 1, &submit_info, frame_in_flight);
         
         VkPresentInfoKHR presentation = {};

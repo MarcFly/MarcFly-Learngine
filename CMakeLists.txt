@@ -11,6 +11,7 @@ set(ML_CMAKE ${CMAKE_CURRENT_SOURCE_DIR}/cmake PARENT_SCOPE)
 project("MarcFly Learngine" VERSION 2021.1
                             DESCRIPTION "C++ Personal Game Engine for learning and trying new things"
                             LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 20)
 set(ML_TARGET "MarcFly_Learngine")
 
 # C / CXX Config
@@ -21,14 +22,16 @@ set(ML_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 set(ML_EXT ${CMAKE_CURRENT_SOURCE_DIR}/submodules)
 
 # Engine Source Files
+file(GLOB_RECURSE ML_SRC ${ML_INC}/*.cpp ${ML_INC}/*.c)
+
+message("${ML_SRC}")
+
 set(ML_SRC
-    ${ML_INC}/main.cpp
-    ${ML_INC}/mfly_window/mfly_window.cpp
-    "${ML_EXT}/enkiTS/src/TaskScheduler.cpp"
+    "${ML_SRC}"
+    ${ML_EXT}/enkiTS/src/TaskScheduler.cpp
     ${ML_LIBS}/mfly_globals.h
     ${ML_LIBS}/sque_timer/sque_timer.h
-    ${ML_INC}/mfly_gpu/mfly_gpu.cpp
-    ${ML_INC}/mfly_shaders/mfly_shaders.cpp
+    ${ML_LIBS}/mfly_slotmap/mfly_slotmap.h
 )
 
 # Libraries
@@ -76,6 +79,7 @@ endif()
 target_include_directories(${ML_TARGET} PUBLIC 
     "${ML_INC}"
     "${ML_EXT}"
+    ${ML_LIBS}/mfly_slotmap
     ${ML_LIBS}/sque_timer
 )
 
@@ -143,6 +147,7 @@ elseif(XGFX_API STREQUAL "METAL")
     find_library(XGFX_LIBRARY Metal)
 endif()
 
+add_definitions(-w)
 
 #------------------------------------------------------------------------------------------------
 # GROUP SOURCING FOR IDEs

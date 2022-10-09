@@ -77,7 +77,8 @@
         "iostream": "cpp",
         "list": "cpp",
         "random": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "set": "cpp"
     },
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }
