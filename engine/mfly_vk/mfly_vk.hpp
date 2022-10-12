@@ -57,65 +57,65 @@ namespace mfly::vk
         typedef void*(*GetSurfaceFun)(void*, uint32_t);
         void ProvideSurfaceFun(GetSurfaceFun fun);
 
-        std::pair<uint32_t, VkSemaphore> AddSemaphore(uint32_t existing);
-        std::pair<uint32_t, VkFence> AddFence(uint32_t existing);
+        sm_key AddSemaphore(sm_key& dvc_handle, sm_key& semaphore_handle);
+        sm_key AddFence(sm_key& dvc_handle, sm_key& fence_handle);
 
 
     //===================================
     struct VkApp {
         VkInstance instance;
 
-        std::vector<VkPhysicalDevice> phys_dvcs;
-        std::vector<VkDevice> logical_dvcs;
+        mfly::slotmap<VkPhysicalDevice> phys_dvcs;
+        mfly::slotmap<VkDevice> logical_dvcs;
 
-        std::vector<VkBufferMemWrap> buffers;
-        std::vector<VkAllocMemWrap> mem;
-        std::vector<VkImageMemWrap> images;
-        std::vector<VkImageView> img_views; // Separate as used for Images, Framebuffers, Attachment, Swapchain Images,...
+        mfly::slotmap<VkBufferMemWrap> buffers;
+        mfly::slotmap<VkAllocMemWrap> mem;
+        mfly::slotmap<VkImageMemWrap> images;
+        mfly::slotmap<VkImageView> img_views; // Separate as used for Images, Framebuffers, Attachment, Swapchain Images,...
 
         VkSurfaceKHR main_surface;
-        std::vector<VkSurfaceKHR> surfaces;
+        mfly::slotmap<VkSurfaceKHR> surfaces;
         GetSurfaceFun get_surface = nullptr;
 
-        std::vector<VkSwapchainWrap> swapchains;
+        mfly::slotmap<VkSwapchainWrap> swapchains;
 
-        std::vector<VkShaderModuleWrap> shaders;
+        mfly::slotmap<VkShaderModuleWrap> shaders;
 
-        std::vector<VkFramebufferWrap> framebuffers;
-        std::vector<VkAttachmentDescription> attachment_descs;
+        mfly::slotmap<VkFramebufferWrap> framebuffers;
+        mfly::slotmap<VkAttachmentDescription> attachment_descs;
 
-        std::vector<VkGraphicsPipelineWrap> graphic_pipes;
+        mfly::slotmap<VkGraphicsPipelineWrap> graphic_pipes;
 
-        std::vector<VkSubpassDescWrap> subpasses;
+        mfly::slotmap<VkSubpassDescWrap> subpasses;
 
-        std::vector<VkRenderPass> render_passes;
-        std::vector<VkRenderPassInfoWrap> render_pass_infos;
+        mfly::slotmap<VkRenderPass> render_passes;
+        mfly::slotmap<VkRenderPassInfoWrap> render_pass_infos;
 
-        std::vector<VkCommandPool> cmd_pools;
-        std::vector<VkCommandBuffer> cmd_buffers;
+        mfly::slotmap<VkCommandPool> cmd_pools;
+        mfly::slotmap<VkCommandBuffer> cmd_buffers;
         VkCommandBuffer* curr_cmd_buffer = nullptr;
-        std::vector<VkCommandBufferBeginInfo> begin_cmd_infos;
-        std::vector<VkRenderPassBeginInfoWrap> begin_renderpass_infos;
+        mfly::slotmap<VkCommandBufferBeginInfo> begin_cmd_infos;
+        mfly::slotmap<VkRenderPassBeginInfoWrap> begin_renderpass_infos;
 
-        std::vector<VkSemaphore> semaphores;
-        std::vector<VkFence> fences;
+        mfly::slotmap<VkSemaphore> semaphores;
+        mfly::slotmap<VkFence> fences;
     };
 
     struct VkAppInfo {
         VkInstance_InitInfo info;
-        std::vector<VkPDVC_InitInfo> p_dvcs;
-        std::vector<VkLDVC_InitInfo> l_dvcs;
-        std::vector<VkSwapchainCreateInfoKHR> swapchains;
-        std::vector<VkBuffer_InitInfo> buffers;
-        std::vector<VkMem_InitInfo> mem_allocs;
-        std::vector<VkImage_InitInfo> imgs;
-        std::vector<VkFramebufferInfoWrap> framebuffers;
+        mfly::slotmap<VkPDVC_InitInfo> p_dvcs;
+        mfly::slotmap<VkLDVC_InitInfo> l_dvcs;
+        mfly::slotmap<VkSwapchainCreateInfoKHR> swapchains;
+        mfly::slotmap<VkBuffer_InitInfo> buffers;
+        mfly::slotmap<VkMem_InitInfo> mem_allocs;
+        mfly::slotmap<VkImage_InitInfo> imgs;
+        mfly::slotmap<VkFramebufferInfoWrap> framebuffers;
 
     };
 };
 
 template<class T>
-inline uint32_t PushNonInvalid(std::vector<T>& vec, int64_t check_val) {
+inline uint32_t PushNonInvalid(mfly::slotmap<T>& vec, int64_t check_val) {
     int64_t v = vec.size()-1;
     if(check_val > v){
         vec.push_back(T());
@@ -126,7 +126,7 @@ inline uint32_t PushNonInvalid(std::vector<T>& vec, int64_t check_val) {
 }
 
 template<class T>
-inline void VecFromHandles(const std::vector<uint32_t> handles, const std::vector<T>& data, std::vector<T>& out) {
+inline void VecFromHandles(const mfly::slotmap<uint32_t> handles, const mfly::slotmap<T>& data, mfly::slotmap<T>& out) {
     out.clear();
     for(auto h : handles) {
         out.push_back(data[h]);

@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include "vk_buffers.h"
+#include <mfly_slotmap.h>
 
 namespace mfly::vk {
     struct VkImage_InitInfo {
@@ -10,57 +11,59 @@ namespace mfly::vk {
         VkDMEMHandles handles;
         std::vector<VkImageViewCreateInfo> views = {};
     };
-    uint32_t CreateImage(VkImage_InitInfo info);
+    sm_key CreateImage(VkImage_InitInfo info);
     struct VkImageMemWrap
     {
         VkImage img;
-        std::vector<uint32_t> view_handles;
-        uint32_t mem_handle = -1;
+        std::vector<sm_key> view_handles;
+        sm_key mem_handle;
     };
 
-    //===================================================
-    struct VkFramebufferWrap {
-        VkFramebuffer framebuffer;
-        uint32_t img_view_handle;
-    };
-
-    struct VkFramebufferInfoWrap {
-        uint32_t render_pass_handle;
-        std::vector<uint32_t> img_view_handles; // Framebuffers are linked to previously created IMAGES (agora sim entendo)
-        VkExtent2D extent;
-        uint32_t num_layers;
-    };
-
-    uint32_t AddFramebuffer(VkFramebufferInfoWrap fb_info, uint32_t existing = UINT32_MAX);
-    uint32_t AddSWCFramebuffer(VkFramebufferInfoWrap info, uint32_t swapchain_handle, uint32_t existing = UINT32_MAX);
-        
     //==============================================
 
     struct VkSwapchainWrap
     {
         VkSwapchainKHR swapchain;
-        uint32_t logical_dvc_handle;
-        uint32_t surface_handle;
+        sm_key logical_dvc_handle;
+        sm_key surface_handle;
         bool need_resize = false;
 
-        std::vector<VkImage> images;
-        std::vector<VkImageView> img_views;
+        std::vector<sm_key> images;
+        std::vector<sm_key> img_views;
         VkExtent2D area;
         uint32_t curr_image;
 
-        uint32_t img_semaphore_h = UINT32_MAX;
+        sm_key img_semaphore_h;
         VkSemaphore img_semaphore;
-        uint32_t img_fence_h = UINT32_MAX;
+        sm_key img_fence_h;
         VkFence img_fence;
 
-        std::vector<uint32_t> framebuffers; // Should be associated so that they are recreated with the swapchain
-        std::vector<uint32_t> fb_infos;
+        std::vector<sm_key> framebuffers; // Should be associated so that they are recreated with the swapchain
+        std::vector<sm_key> fb_infos;
     };
 
-    void TriggerResizeSwapchain(uint32_t swapchain_handle, VkExtent2D area);
-    uint32_t CreateSwapchain(VkSwapchainCreateInfoKHR info, uint32_t surface_handle, uint32_t logical_dvc_handle, uint32_t existing = UINT32_MAX);
-    void RecreateSwapchain(uint32_t swapchain_handle);
+    void TriggerResizeSwapchain(sm_key swapchain_handle, VkExtent2D area);
+    sm_key CreateSwapchain(VkSwapchainCreateInfoKHR info, sm_key surface_handle, sm_key logical_dvc_handle);
+    void RecreateSwapchain(sm_key& swapchain_handle);
     void DestroySwapchain(VkSwapchainWrap& swc_wrap);
+
+    //===================================================
+
+    struct VkFramebufferWrap {
+        VkFramebuffer framebuffer;
+        sm_key img_view_handle;
+    };
+
+    struct VkFramebufferInfoWrap {
+        sm_key render_pass_handle;
+        std::vector<sm_key> img_view_handles; // Framebuffers are linked to previously created IMAGES (agora sim entendo)
+        VkExtent2D extent;
+        uint32_t num_layers;
+    };
+
+    sm_key AddFramebuffer(sm_key& dvc_handle, VkFramebufferInfoWrap fb_info);
+    sm_key AddSWCFramebuffer(sm_key& dvc_handle, VkFramebufferInfoWrap info, sm_key& swapchain_handle);
+        
 
 };
 

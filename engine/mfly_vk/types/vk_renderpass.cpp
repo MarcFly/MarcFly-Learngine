@@ -1,9 +1,10 @@
 #include "vk_renderpass.h"
 #include "../mfly_vk.hpp"
 
-uint32_t mfly::vk::AddAttachmentDesc(VkAttachmentInfoWrap info, uint32_t existing) {
-    existing = PushNonInvalid(vkapp.attachment_descs, existing);
-    VkAttachmentDescription& desc = vkapp.attachment_descs[existing];
+using namespace mfly;
+
+void  mfly::vk::AddAttachmentDesc(sm_key& attachment_desc_handle, VkAttachmentInfoWrap info) {
+    VkAttachmentDescription& desc = vkapp.attachment_descs.insert(attachment_desc_handle, VkAttachmentDescription());
     
     desc.loadOp = (VkAttachmentLoadOp)info.ops.load;
     desc.storeOp = (VkAttachmentStoreOp)info.ops.store;
@@ -17,14 +18,11 @@ uint32_t mfly::vk::AddAttachmentDesc(VkAttachmentInfoWrap info, uint32_t existin
     
     desc.initialLayout = info.input_layout;
     desc.finalLayout = info.output_layout;
-
-    return existing;
 }
 
-uint32_t mfly::vk::AddSubPass(VkSubPassInfoWrap& info, uint32_t existing) {
-    existing = PushNonInvalid(vkapp.subpasses, existing);
+void mfly::vk::AddSubPass(sm_key& subpass_handle, VkSubPassInfoWrap& info) {
     
-    VkSubpassDescWrap& sp_wrap = vkapp.subpasses[existing];
+    VkSubpassDescWrap& sp_wrap = vkapp.subpasses.insert(subpass_handle, VkSubpassDescWrap());
     VkSubpassDescription& subpass = sp_wrap.desc;
     VkSubPassInfoWrap& subpass_info = sp_wrap.info;
     subpass_info.framebuffers.swap(info.framebuffers);
@@ -46,21 +44,11 @@ uint32_t mfly::vk::AddSubPass(VkSubPassInfoWrap& info, uint32_t existing) {
     subpass.preserveAttachmentCount = subpass_info.preserve.size();
     subpass.pPreserveAttachments = (subpass.preserveAttachmentCount == 0) ? nullptr : subpass_info.preserve.data();
     subpass.pResolveAttachments = (subpass_info.sampling_resolves.size() == 0) ? nullptr : subpass_info.sampling_resolves.data();
-    
-    return existing;
 }
 
-uint32_t mfly::vk::CreateRenderPass(VkRenderPassInfoWrap info, uint32_t existing) {
-    bool destroy_pass = existing != UINT32_MAX;
-    PushNonInvalid(vkapp.render_passes, existing);
-    existing = PushNonInvalid(vkapp.render_pass_infos, existing);
-    VkRenderPass* pass = &vkapp.render_passes[existing];
-    VkRenderPassInfoWrap& pass_info = vkapp.render_pass_infos[existing];
-
-    if(destroy_pass) {
-        // TODO: Select proper device
-        vkDestroyRenderPass(vkapp.logical_dvcs[0], *pass, nullptr);
-    }
+void mfly::vk::CreateRenderPass(sm_key& renderpass_handle, sm_key& renderpass_info_handle, VkRenderPassInfoWrap info) {
+    VkRenderPass& pass = vkapp.render_passes.insert(renderpass_handle, VkRenderPass());
+    VkRenderPassInfoWrap& pass_info = vkapp.render_pass_infos.insert(renderpass_info_handle, info);
 
     pass_info = info;
     
@@ -68,11 +56,12 @@ uint32_t mfly::vk::CreateRenderPass(VkRenderPassInfoWrap info, uint32_t existing
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     create_info.attachmentCount = pass_info.attachment_handles.size();
     std::vector<VkAttachmentDescription> attachments;
-    VecFromHandles(pass_info.attachment_handles, vkapp.attachment_descs, attachments);
+    vkapp.attachment_descs.from_handles(pass_info.attachment_handles, attachments);
     create_info.pAttachments = attachments.data();
     
     std::vector<VkSubpassDescWrap> subpasses;
-    VecFromHandles(pass_info.subpass_handles, vkapp.subpasses, subpasses);
+    vkapp.subpasses.from_handles(pass_info.subpass_handles, subpasses);
+
     std::vector<VkSubpassDescription> sp_descs;
     for(auto sp : subpasses) {sp_descs.push_back(sp.desc);}
     create_info.subpassCount = sp_descs.size();
@@ -93,20 +82,19 @@ uint32_t mfly::vk::CreateRenderPass(VkRenderPassInfoWrap info, uint32_t existing
     create_info.pDependencies = &dependency;
 
 
-    VkResult res = vkCreateRenderPass(vkapp.logical_dvcs[0], &create_info, nullptr, pass);
+    VkResult res = vkCreateRenderPass(vkapp.logical_dvcs[0], &create_info, nullptr, &pass);
 
     if(res != VK_SUCCESS)
         printf("Failed to create rende pass");
-
-    return vkapp.render_passes.size()-1; // Always return, if it failed, you have to repair it or will crash somewhere else
+        
+     // Always return, if it failed, you have to repair it or will crash somewhere else
 }
 
 //=============================================
 
 
-uint32_t mfly::vk::AddRenderPassBegin(VkBeginRenderPassInfoWrap info, uint32_t existing) {
-    existing = PushNonInvalid(vkapp.begin_renderpass_infos, existing);
-    VkRenderPassBeginInfoWrap& bri_wrap  = vkapp.begin_renderpass_infos[existing];
+void mfly::vk::AddRenderPassBegin(sm_key& begin_renderpass_handle, VkBeginRenderPassInfoWrap info) {
+    VkRenderPassBeginInfoWrap& bri_wrap = vkapp.begin_renderpass_infos.insert(begin_renderpass_handle, VkRenderPassBeginInfoWrap());
     info.clear_colors.swap(bri_wrap.colors);
     bri_wrap.create_info = {};
     bri_wrap.create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -116,16 +104,13 @@ uint32_t mfly::vk::AddRenderPassBegin(VkBeginRenderPassInfoWrap info, uint32_t e
     bri_wrap.create_info.renderArea.offset = info.offset;
     bri_wrap.create_info.pClearValues = bri_wrap.colors.data();
     bri_wrap.create_info.clearValueCount = bri_wrap.colors.size();
-
-    return existing;
 }
 
-uint32_t mfly::vk::BeginRenderPass(uint32_t begin_renderpass_handle, VkCommandBuffer cmd_buf) {
+void mfly::vk::BeginRenderPass(sm_key& begin_renderpass_handle, VkCommandBuffer cmd_buf) {
     VkRenderPassBeginInfoWrap& info = vkapp.begin_renderpass_infos[begin_renderpass_handle];
 
     // TODO: Change the last parameter based on required subpasses or not (currently only primary passes)
     info.create_info.framebuffer = vkapp.framebuffers[0].framebuffer;
     info.create_info.renderArea.extent = vkapp.swapchains[0].area;
     vkCmdBeginRenderPass(cmd_buf, &info.create_info, VK_SUBPASS_CONTENTS_INLINE);
-    return 0;
 }

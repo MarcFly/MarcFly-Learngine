@@ -7,14 +7,17 @@
 #include <optional> // Check if things are there or not
 // Include spans?
 
+// Make the key templated too?
+// Would solve some ambiguity issues
+
 namespace mfly {
     // TODO: structure that groups in constant groups (paged vector?)
 
     struct sm_key {
-        const uint32_t own_index;
+        uint32_t own_index;
         uint32_t data_index;
         uint32_t version = 0;
-        const uint32_t tags;
+        uint32_t tags;
     };
 
     template<class T>
@@ -24,51 +27,61 @@ namespace mfly {
         std::vector<sm_key> indices; // We do not care, after certain time, indices will be filled with holes :D
         
         std::shared_mutex data_mtx;
-        std::vector<T> data;
-        std::vector<uint32_t> data_to_index;
+        std::vector<T> _data;
+        std::vector<uint32_t> _data_to_index;
 
         public:
+        typedef T* iterator;
+        typedef T value_type;
+
         slotmap<T>(uint32_t minsize = 4096, uint32_t pagesize = 4096) {
             indices.reserve(minsize);
-            data.reserve(minsize);
-            data_to_index.reserve(minsize);
+            _data.reserve(minsize);
+            _data_to_index.reserve(minsize);
         };
 
         ~slotmap<T>() {clear();};
 
-        // Basic data structure operations:
+        // Basic _data structure operations:
         slotmap<T>(const slotmap<T>& copy) {
             indices.resize(copy.indices.size());
             memcpy(indices.data(), copy.indices.data(), copy.indices.size() * sizeof(sm_key));
 
-            data.resize(copy.data.size());
-            memcpy(data.data(), copy.data.data(), copy.data.size()*sizeof(T));
+            _data.resize(copy._data.size());
+            memcpy(_data.data(), copy._data.data(), copy._data.size()*sizeof(T));
 
-            data_to_index(copy.data_to_index.size());
-            memcpy(data_to_index.data(), copy.data_to_index.data(), copy.data_to_index.size()*sizeof(uint32_t));
+            _data_to_index.resize(copy._data_to_index.size());
+            memcpy(_data_to_index.data(), copy._data_to_index.data(), copy._data_to_index.size()*sizeof(uint32_t));
         }
 
         slotmap<T>(slotmap<T>&& move) {
             std::move(move.indices.begin(), move.indices.end(), indices);
-            std::move(move.data.begin(), move.data.end(), data);
-            std::move(move.data_to_index.begin(), move.data_to_index.end(), data_to_index);
+            std::move(move._data.begin(), move._data.end(), _data);
+            std::move(move._data_to_index.begin(), move._data_to_index.end(), _data_to_index);
         }
 
-        sm_key push(T data_in, uint32_t tags = 0) {
+        sm_key push(T _data_in, uint32_t tags = 0) {
             sm_key ret{
-                .own_index = indices.size(),
-                .data_index = data.size(),
+                .own_index = (uint32_t)indices.size(),
+                .data_index = (uint32_t)_data.size(),
                 .version = 0,
                 .tags = tags
             };
 
-            data.push_back(data_in);
+            _data.push_back(_data_in);
             indices.push_back(ret);
-            data_to_index.push_back(ret.own_index);
+            _data_to_index.push_back(ret.own_index);
             return ret;
         }  
+        sm_key push_back(T _data_in, uint32_t tags = 0) {return push(_data_in, tags);}
 
-        bool has_key(sm_key key) { return key.own_index > indices.size()-1; }
+        T& insert(sm_key& k, T _data_in) {
+            if(!has_key(k)) k = push(_data_in, k.tags);
+            else (*this)[k] = _data_in;
+            return (*this)[k];
+        }
+
+        inline bool has_key(sm_key key) { return key.own_index > indices.size()-1; }
 
         bool erase (sm_key key) {
             if(key.own_index > indices.size()-1) return false;
@@ -77,14 +90,14 @@ namespace mfly {
 
             {
                 std::shared_lock<std::shared_mutex> s_lock(data_mtx);
-                uint32_t data_last = data.size()-1;
-                data[key.data_index] = data[data_last];
-                data_to_index[key.data_index] = key.own_index;
+                uint32_t _data_last = _data.size()-1;
+                _data[key.data_index] = _data[_data_last];
+                _data_to_index[key.data_index] = key.own_index;
             }
             
             std::unique_lock<std::shared_mutex> lock(data_mtx);
-            data.pop_back();
-            data_to_index.pop_back();
+            _data.pop_back();
+            _data_to_index.pop_back();
 
             return true;
         }
@@ -96,39 +109,60 @@ namespace mfly {
             if(key.own_index > indices.size()-1) return ret;
 
             indices[key.own_index].version = UINT32_MAX;
-            ret = data[key.data_index];
+            ret = _data[key.data_index];
 
-            // check data for reads
-            uint32_t data_last = data.size()-1;
-            data[key.data_index] = data[data_last];
-            data_to_index[key.data_index] = key.own_index;
+            // check _data for reads
+            uint32_t _data_last = _data.size()-1;
+            _data[key.data_index] = _data[_data_last];
+            _data_to_index[key.data_index] = key.own_index;
 
-            // Lock data for write
-            data.pop_back();
-            data_to_index.pop_back();
+            // Lock _data for write
+            _data.pop_back();
+            _data_to_index.pop_back();
 
             return ret;
         }
 
         T& operator[](sm_key& key) {
             sm_key& curr = indices[key.own_index];
-            key.version = ++curr.version; // assume we are chaning data if asked for it
+            key.version = ++curr.version; // assume we are chaning _data if asked for it
 
-            return data[curr.data_index];            
+            return _data[curr.data_index];            
         }
 
         const T& operator[](sm_key& key) const {
             const sm_key& curr = indices[key.own_index];
             key.version = curr.version;
-            return data[curr.data_index];
+            return _data[curr.data_index];
         }
 
-        uint64_t size() { return data.size(); }
+        T& operator[](const uint64_t index) {
+            ++indices[_data_to_index[index]].version;
+            return _data[index];
+        }
+
+        sm_key GetKeyAtIDX(const uint64_t index) {
+            return indices[_data_to_index[index]];
+        }
+
+        T* begin() { return &_data[0];}
+        T* end() { return &_data[_data.size()-1];}
+        //T& back() {return _data[data.size()-1];}
+        
+        void from_handles(std::vector<sm_key>& keys, std::vector<T> out) {
+            out.clear();
+            for(sm_key& k : keys)
+                out.push_back(_data[k.data_index]);
+        }
+
+        T* data() {return _data.data();}
+
+        uint64_t size() { return _data.size(); }
         
         void clear() {
             indices.clear();
-            data.clear();
-            data_to_index.clear();
+            _data.clear();
+            _data_to_index.clear();
         }
     };
 

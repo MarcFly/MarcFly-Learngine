@@ -2,6 +2,7 @@
 #define MFLY_GFX_PIPE
 
 #include <vulkan/vulkan.hpp>
+#include <mfly_slotmap.h>
 
 namespace mfly::vk {
     struct VkDynamicPipeStateInfoWrap {
@@ -11,8 +12,8 @@ namespace mfly::vk {
         };
 
         struct VkVtxPipeStateInfoWrap {
-            uint32_t vtx_attribute_descriptor_handle;
-            uint32_t vtx_binding_descriptor_handle;
+            sm_key vtx_attribute_descriptor_handle;
+            sm_key vtx_binding_descriptor_handle;
             // These must be uploaded previously and known
             // They will get back the intended data pointer and size
         };
@@ -72,8 +73,8 @@ namespace mfly::vk {
 
         struct VkLayoutPipeStageInfoWrap {
             uint32_t count = 0;
-            std::vector<uint32_t> descriptor_sets_handles; // Assume precreated
-            std::vector<uint32_t> push_constants_handles; // Assume precreated
+            std::vector<sm_key> descriptor_sets_handles; // Assume precreated
+            std::vector<sm_key> push_constants_handles; // Assume precreated
         };
         typedef VkLayoutPipeStageInfoWrap PipeLayoutInfo;
 
@@ -93,11 +94,11 @@ namespace mfly::vk {
             PipeLayoutInfo layout_info;
 
             const char* name;
-            std::vector<uint32_t> shaders;
-            uint32_t render_pass_handle;
+            std::vector<sm_key> shaders;
+            sm_key render_pass_handle;
         };
 
-        uint32_t CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info);
+        sm_key CreateGraphicsPipeline(sm_key& dvc_handle, VkGraphicsPipeStateInfoWrap pipe_info);
 
         struct VkGraphicsPipelineWrap {
             VkPipelineLayout layout;
@@ -106,7 +107,7 @@ namespace mfly::vk {
         };
 
     //===================================================
-    uint32_t SetDynState(VkCommandBuffer cmd_buf); // Dyn state depends on each pipeline defined... how to pass such variable struct?
+    void SetDynState(sm_key& swapchain_handle, VkCommandBuffer cmd_buf); // Dyn state depends on each pipeline defined... how to pass such variable struct?
     /// What feels ideal for this setup is something like a CommadnBufferWrap
     /// The struct holds directly a CommandBuffer { vec<DrawPipelineWrap> {pipeline, dynstate, vec<draw_commands>}}
     /// *To be amplified with descriptors, descriptor sets, binding and whatever,

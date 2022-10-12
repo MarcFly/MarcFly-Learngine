@@ -1,8 +1,11 @@
 #include "vk_gfx_pipe.h"
 #include "vk_renderpass.h"
 #include "../mfly_vk.hpp"
+#include "vk_images.h"
 
-uint32_t mfly::vk::CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info) {
+using namespace mfly;
+
+sm_key mfly::vk::CreateGraphicsPipeline(sm_key& dvc_handle, VkGraphicsPipeStateInfoWrap pipe_info) {
     VkPipelineVertexInputStateCreateInfo vtx_info = {};
     vtx_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     // Function to set descriptors from binding descriptors and attribute descriptors
@@ -87,11 +90,11 @@ uint32_t mfly::vk::CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info)
     layout_state.pushConstantRangeCount = pipe_info.layout_info.push_constants_handles.size();
     layout_state.pPushConstantRanges = nullptr;
 
-    vkapp.graphic_pipes.push_back(VkGraphicsPipelineWrap());
-    VkGraphicsPipelineWrap& pipe_wrap = vkapp.graphic_pipes.back();
+    sm_key ret = vkapp.graphic_pipes.push_back(VkGraphicsPipelineWrap());
+    VkGraphicsPipelineWrap& pipe_wrap = vkapp.graphic_pipes[ret];
     VkPipelineLayout* pipe = &pipe_wrap.layout;
     // TODO: Way to select proper device
-    VkResult res = vkCreatePipelineLayout(vkapp.logical_dvcs[0], &layout_state, nullptr, pipe);
+    VkResult res = vkCreatePipelineLayout(vkapp.logical_dvcs[dvc_handle], &layout_state, nullptr, pipe);
     if(res != VK_SUCCESS)
         printf("Failed to create pipeline layout\n"); 
 
@@ -99,7 +102,7 @@ uint32_t mfly::vk::CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info)
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     create_info.stageCount = pipe_info.num_stages;
     std::vector<VkShaderModuleWrap> shaders;
-    VecFromHandles(pipe_info.shaders, vkapp.shaders, shaders);
+    vkapp.shaders.from_handles(pipe_info.shaders, shaders);
     std::vector<VkPipelineShaderStageCreateInfo> shader_stage_infos;
     for(auto shader : shaders) {
         shader_stage_infos.push_back(shader.stage_info);
@@ -127,34 +130,34 @@ uint32_t mfly::vk::CreateGraphicsPipeline(VkGraphicsPipeStateInfoWrap pipe_info)
     create_info.basePipelineHandle = VK_NULL_HANDLE; // TODO: Deriving from previously created / Requires flag VK_PIPELINE_CRETE_DERIVATIVE_BIT
     create_info.basePipelineIndex = -1; // TODO: index from the one that are about to be created... prefer handle maybe
 
-    res = vkCreateGraphicsPipelines(vkapp.logical_dvcs[0], VK_NULL_HANDLE, 1, &create_info, nullptr, &pipe_wrap.pipe);
+    res = vkCreateGraphicsPipelines(vkapp.logical_dvcs[dvc_handle], VK_NULL_HANDLE, 1, &create_info, nullptr, &pipe_wrap.pipe);
     // TODO: Allow multiple pipelines to be created at the same time
     if(res != VK_SUCCESS)
         printf("Failed to create graphics pipeline");
 
-    return 0;
+    return ret;
 };
 
 
 //=================================================
 
 
-uint32_t mfly::vk::SetDynState(VkCommandBuffer cmd_buf) {
+void mfly::vk::SetDynState(sm_key& swapchain_handle, VkCommandBuffer cmd_buf) {
+    VkSwapchainWrap& swc = vkapp.swapchains[swapchain_handle];
+
     // Temp
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(vkapp.swapchains[0].area.width);
-    viewport.height = static_cast<float>(vkapp.swapchains[0].area.height);
+    viewport.width = static_cast<float>(swc.area.width);
+    viewport.height = static_cast<float>(swc.area.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
-    scissor.extent = vkapp.swapchains[0].area;
+    scissor.extent = swc.area;
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
     // *Temp  
-
-    return 0;
 }

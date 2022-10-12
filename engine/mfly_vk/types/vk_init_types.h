@@ -2,6 +2,7 @@
 #define MFLY_VK_INIT_TYPES
 
 #include <vulkan/vulkan.hpp>
+#include <mfly_slotmap.h>
 
 namespace mfly::vk {
     struct VkPDVC_InitInfo {
@@ -17,8 +18,10 @@ namespace mfly::vk {
         
         std::vector<VkExtensionProperties> available_exts;
     };
-
-    uint32_t InitVkInstance(VkInstance_InitInfo& instance_info); // Startup Vulkan
+    // TODO: Function to find best candidate based on Extensions, Layers
+    
+    // Returns the first physical device found, should use function to find best candidate instead
+    sm_key InitVkInstance(VkInstance_InitInfo& instance_info); // Startup Vulkan
 
 
     //========================================================
@@ -31,7 +34,7 @@ namespace mfly::vk {
         std::vector<void*> exts_info;
     };
 
-    uint32_t InitQueues(VkLDVC_InitInfo& info, uint32_t phys_dvc_handle = 0);
+    void InitQueues(VkLDVC_InitInfo& info, sm_key phys_device_handle);
 
     struct VkQueueWrap
     {

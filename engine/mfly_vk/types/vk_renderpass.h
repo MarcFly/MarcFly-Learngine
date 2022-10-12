@@ -2,6 +2,7 @@
 #define MFLY_VK_RENDERPASS
 
 #include <vulkan/vulkan.hpp>
+#include <mfly_slotmap.h>
 
 namespace mfly::vk {
     // Not usable?
@@ -18,7 +19,7 @@ namespace mfly::vk {
         VkImageLayout output_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; // Image for a swapchain
         // CHANGE for color attachment or transfer/copy operations!
     };     
-    uint32_t AddAttachmentDesc(VkAttachmentInfoWrap info, uint32_t existing = UINT32_MAX);
+    void AddAttachmentDesc(sm_key& subpass_key, VkAttachmentInfoWrap info);
 
     struct VkSubPassInfoWrap {
         std::vector<VkAttachmentReference> framebuffers;
@@ -30,7 +31,7 @@ namespace mfly::vk {
         std::vector<VkAttachmentReference> sampling_resolves;
         std::vector<uint32_t> preserve; // TODO: Reasearch preserve attachments from VkSubpassDescription
     };
-    uint32_t AddSubPass(VkSubPassInfoWrap& info, uint32_t existing = UINT32_MAX); // Invalidates vectors!
+    void AddSubPass(sm_key& subpass_handle, VkSubPassInfoWrap& info); // Invalidates vectors!
     
     struct VkSubPassWrap {
         VkSubpassDescription subpass;
@@ -45,14 +46,14 @@ namespace mfly::vk {
     //====================================================
 
     struct VkRenderPassInfoWrap {
-        std::vector<uint32_t> attachment_handles;
-        std::vector<uint32_t> subpass_handles;
-        uint32_t pipeline_handle;
+        std::vector<sm_key> attachment_handles;
+        std::vector<sm_key> subpass_handles;
+        sm_key pipeline_handle;
     };
 
 
-    uint32_t CreateRenderPass(VkRenderPassInfoWrap info, uint32_t existing = UINT32_MAX);
-    uint32_t RegenRenderPass(uint32_t handle); // For when known subpasses are changed
+    void CreateRenderPass(sm_key& renderpasshandle, sm_key& renderpass_info_handle, VkRenderPassInfoWrap info);
+    void RegenRenderPass(sm_key& handle); // For when known subpasses are changed
     // Ideally, a RegenAllRenderPasses which takes into account versioning of their subpasses?
     
     struct VkRenderPassWrap {
@@ -62,24 +63,15 @@ namespace mfly::vk {
     
     //=====================================================
 
-    struct VkBeginInfoWrap {
-        uint32_t flags = 0; // VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = Rerecorder after being submitted 
-        // VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT = Secondary and will only be used within a single render passs
-        // VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT = will be resubmitted multiple times during execution
-        uint32_t parent_handle = UINT32_MAX;
-    };
-    uint32_t AddRecordBegin(VkBeginInfoWrap info, uint32_t existing = UINT32_MAX);
-    VkCommandBuffer BeginRecord(uint32_t begin_handle, uint32_t cmd_buf_handle);
-
     struct VkBeginRenderPassInfoWrap {
-        uint32_t render_pass_handle;
-        uint32_t framebuffer_handle;
+        sm_key render_pass_handle;
+        sm_key framebuffer_handle;
         VkOffset2D offset;
         VkExtent2D extent;
         std::vector<VkClearValue> clear_colors;
     };
-    uint32_t AddRenderPassBegin(VkBeginRenderPassInfoWrap info, uint32_t existing = UINT32_MAX);
-    uint32_t BeginRenderPass(uint32_t begin_handle, VkCommandBuffer cmd_buf);
+    void AddRenderPassBegin(sm_key& begin_renderpass_handle, VkBeginRenderPassInfoWrap info);
+    void BeginRenderPass(sm_key& begin_handle, VkCommandBuffer cmd_buf);
     
 
     struct VkRenderPassBeginInfoWrap {

@@ -5,7 +5,6 @@
 
 struct mfly::vk::VkApp vkapp;
 struct mfly::vk::VkAppInfo vkapp_info;
-
 namespace mfly
 {
     namespace vk
@@ -25,6 +24,8 @@ namespace mfly
 
     };
 };
+
+using namespace mfly;
 
 // Extensions are super important
 // Such as vkCreateDebugUtilsMessesngerEXT with extension name VK_EXT_debug_utils
@@ -47,7 +48,7 @@ namespace mfly
 // Much more per GPU than per instance *Ray Tracing for example)
 
 
-std::pair<uint32_t, VkSemaphore> mfly::vk::AddSemaphore(uint32_t existing) {
+sm_key mfly::vk::AddSemaphore(sm_key& semaphore_handle) {
     uint32_t prev_val = existing;
     existing = PushNonInvalid(vkapp.semaphores, existing);
     VkSemaphore* semaphore = &vkapp.semaphores[existing];
@@ -62,19 +63,24 @@ std::pair<uint32_t, VkSemaphore> mfly::vk::AddSemaphore(uint32_t existing) {
     return std::pair<uint32_t, VkSemaphore>(existing, *semaphore);
 }
 
-std::pair<uint32_t, VkFence> mfly::vk::AddFence(uint32_t existing) {
-    uint32_t prev_val = existing;
-    existing = PushNonInvalid(vkapp.fences, existing);
-    VkFence* fence = &vkapp.fences[existing];
-    if(existing == prev_val) vkDestroyFence(vkapp.logical_dvcs[0], *fence, nullptr);
+sm_key mfly::vk::AddFence(sm_key& dvc_handle, sm_key& fence_handle) {
+    VkDevice& dvc = vkapp.logical_dvcs[dvc_handle];
+    VkFence fence;
+    if(vkapp.fences.has_key(fence_handle)){
+        fence = vkapp.fences[fence_handle];
+        vkDestroyFence(dvc, fence, nullptr);
+    } else {
+        vkapp.fences.push(VkFence());
+        fence = vkapp.fences[fence_handle];
+    }
 
     VkFenceCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     // TODO: Properly select logical device
-    vkCreateFence(vkapp.logical_dvcs[0], &info, nullptr, fence);
+    vkCreateFence(dvc, &info, nullptr, &fence);
 
-    return std::pair<uint32_t, VkFence>(existing, *fence);
+    return fence_handle;
 }
 
 // Module Basics
