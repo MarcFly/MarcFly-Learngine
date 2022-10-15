@@ -19,7 +19,7 @@ namespace mfly::vk {
         VkImageLayout output_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; // Image for a swapchain
         // CHANGE for color attachment or transfer/copy operations!
     };     
-    void AddAttachmentDesc(sm_key& subpass_key, VkAttachmentInfoWrap info);
+    VkAttachmentDescription& AddAttachmentDesc(sm_key& attachment_desc_handle, VkAttachmentInfoWrap info);
 
     struct VkSubPassInfoWrap {
         std::vector<VkAttachmentReference> framebuffers;

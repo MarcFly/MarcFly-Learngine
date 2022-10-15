@@ -17,7 +17,7 @@ namespace mfly::vk {
         // Huh?
         uint32_t count = 1;
     };
-    sm_key AddCmdBuffers(sm_key& dvc_handle, VkCmdBufInfoWrap info);
+    std::vector<sm_key> AddCmdBuffers(sm_key& dvc_handle, VkCmdBufInfoWrap info);
 
     struct VkBeginInfoWrap {
         uint32_t flags = 0; // VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT = Rerecorder after being submitted 

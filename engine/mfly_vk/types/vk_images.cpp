@@ -29,7 +29,7 @@ sm_key mfly::vk::CreateImage(VkImage_InitInfo info)
 
         img.view_handles.push_back(vkapp.img_views.push_back(VkImageView()));
         
-        vkCreateImageView(dvc, &view_info, nullptr, vkapp.img_views.end());
+        vkCreateImageView(dvc, &view_info, nullptr, &vkapp.img_views[img.view_handles.back()]);
     }
 
     // DEBUG INFO
@@ -68,6 +68,7 @@ sm_key mfly::vk::AddSWCFramebuffer(sm_key& dvc_handle, VkFramebufferInfoWrap inf
     
     sm_key fb_key = vkapp.framebuffers.push(VkFramebufferWrap());
     VkFramebuffer& fb = vkapp.framebuffers[fb_key].framebuffer;
+    swc_wrap.framebuffers.push_back(fb_key);
     // TODO: ...
     //if(prev_val == existing) vkDestroyFramebuffer(vkapp.logical_dvcs[0], fb,nullptr);
 
@@ -103,17 +104,16 @@ sm_key mfly::vk::AddSWCFramebuffer(sm_key& dvc_handle, VkFramebufferInfoWrap inf
 
 //========================================================
 
-sm_key mfly::vk::CreateSwapchain(VkSwapchainCreateInfoKHR info, sm_key surface_handle, sm_key logical_dvc_handle)
+void mfly::vk::CreateSwapchain(sm_key& swapchain_handle, VkSwapchainCreateInfoKHR info, sm_key surface_handle, sm_key logical_dvc_handle)
 {
-    sm_key swc_key = vkapp.swapchains.push(VkSwapchainWrap());
+    VkSwapchainWrap &scw = vkapp.swapchains.insert(swapchain_handle, VkSwapchainWrap());
 
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     info.surface = vkapp.surfaces[surface_handle];
     // There are many more settings, research
 
     info.minImageCount = 1;
-    
-    VkSwapchainWrap &scw = vkapp.swapchains[swc_key];
+
     scw.logical_dvc_handle = logical_dvc_handle;
     VkDevice &dvc = vkapp.logical_dvcs[logical_dvc_handle];
     info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -153,24 +153,25 @@ sm_key mfly::vk::CreateSwapchain(VkSwapchainCreateInfoKHR info, sm_key surface_h
         VkImageMemWrap img_mem;
 
         view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        view_info.image = swc_images[i];
+        img_mem.img = view_info.image = swc_images[i];
 
-        img_mem.view_handles.push_back(vkapp.img_views.push_back(VkImageView()));
+        sm_key img_view_h = vkapp.img_views.push_back(VkImageView());
+        img_mem.view_handles.push_back(img_view_h);
+        scw.img_views.push_back(img_view_h);
         vkCreateImageView(dvc, &view_info, nullptr, &vkapp.img_views[img_mem.view_handles.back()]);
 
         scw.images.push_back(vkapp.images.push(img_mem));
     }
 
-    scw.img_semaphore_h = AddSemaphore(logical_dvc_handle, scw.img_fence_h);
+    AddSemaphore(logical_dvc_handle, scw.img_semaphore_h);
     scw.img_semaphore = vkapp.semaphores[scw.img_semaphore_h];
-    scw.img_fence_h = AddFence(logical_dvc_handle, scw.img_semaphore_h);
+    AddFence(logical_dvc_handle, scw.img_fence_h);
     scw.img_fence = vkapp.fences[scw.img_fence_h];
 
     // DEBUG INFO
-    sm_key scw_info_k = swc_key;
+    sm_key scw_info_k = swapchain_handle;
     vkapp_info.swapchains.insert(scw_info_k, info);
 
-    return swc_key;
 }
 
 void mfly::vk::TriggerResizeSwapchain(sm_key swapchain_handle, VkExtent2D area) {
@@ -184,57 +185,61 @@ void mfly::vk::TriggerResizeSwapchain(sm_key swapchain_handle, VkExtent2D area) 
 }
 
 void mfly::vk::RecreateSwapchain(sm_key& swapchain_handle) {
-    VkSwapchainWrap& old_swc_wrap = vkapp.swapchains[swapchain_handle];
-    VkDevice dvc = vkapp.logical_dvcs[old_swc_wrap.logical_dvc_handle];
-    vkDeviceWaitIdle(dvc);
+    VkSwapchainWrap& swc_wrap = vkapp.swapchains[swapchain_handle];
+    std::vector<VkFramebufferInfoWrap> fb_infos;
+    for(sm_key& fb_info_h : swc_wrap.fb_infos)
+        fb_infos.push_back(vkapp_info.framebuffers[fb_info_h]);
+    DestroySwapchain(swc_wrap);
+    VkDevice dvc = vkapp.logical_dvcs[swc_wrap.logical_dvc_handle];
 
-    //swc_wrap.need_resize = false;
-
-    vkDestroySwapchainKHR(dvc, old_swc_wrap.swapchain, nullptr);
-
-    for (auto imgview : old_swc_wrap.img_views) {
-        std::optional<VkImageView> v = vkapp.img_views.pop(imgview);
-        if(v.has_value()) vkDestroyImageView(dvc, *v, nullptr);
-    }
-    old_swc_wrap.img_views.clear();
-
-    for (auto img : old_swc_wrap.images) {
-        std::optional<VkImageMemWrap> i = vkapp.images.pop(img);
-        if(i.has_value()) vkDestroyImage(dvc, i->img, nullptr);
-    }
-    old_swc_wrap.images.clear();
-
-    for (auto fb_k : old_swc_wrap.framebuffers) {
-        std::optional<VkFramebufferWrap> fb = vkapp.framebuffers.pop(fb_k);
-        if(fb.has_value()) vkDestroyFramebuffer(dvc, fb->framebuffer, nullptr);
-    }
-
-    old_swc_wrap.framebuffers.clear();
     
-    sm_key new_swc = CreateSwapchain(vkapp_info.swapchains[swapchain_handle], old_swc_wrap.surface_handle, old_swc_wrap.logical_dvc_handle);
-    VkSwapchainWrap& new_swc_wrap = vkapp.swapchains[new_swc];
+    CreateSwapchain(swapchain_handle, vkapp_info.swapchains[swapchain_handle], swc_wrap.surface_handle, swc_wrap.logical_dvc_handle);
+    //VkSwapchainWrap& new_swc_wrap = vkapp.swapchains[new_swc];
     // Now destroy and recreate framebuffers
 
-    for(int i = 0; i < old_swc_wrap.fb_infos.size(); ++i) {
-        AddSWCFramebuffer(old_swc_wrap.logical_dvc_handle, vkapp_info.framebuffers[old_swc_wrap.fb_infos[i]], new_swc);
-        vkapp_info.framebuffers.pop(old_swc_wrap.fb_infos[i]);
+    for(int i = 0; i < fb_infos.size(); ++i) {
+        AddSWCFramebuffer(swc_wrap.logical_dvc_handle, fb_infos[i], swapchain_handle);
     }
     // TODO: Recreate Renderpasses -> Image Change
+
+    swc_wrap.need_resize = false;
 
 }
 
 void mfly::vk::DestroySwapchain(VkSwapchainWrap& swc_wrap) {
-    VkDevice dvc = vkapp.logical_dvcs[0];
+    VkDevice dvc = vkapp.logical_dvcs[swc_wrap.logical_dvc_handle];
+    vkDeviceWaitIdle(dvc);
+    
     vkDestroySwapchainKHR(dvc, swc_wrap.swapchain, nullptr);
+    // Destroying a swapchain already destroys the swapchain images...
+    // Thus they should be popped out of the pool of images and not deleted appart...
+    for (auto img : swc_wrap.images) {
+        std::optional<VkImageMemWrap> i = vkapp.images.pop(img);
+        //if(i.has_value()) vkDestroyImage(dvc, i->img, nullptr);
+    }
+    swc_wrap.images.clear();
 
-    // Images, Views and Framebuffers are now stored with everything else, so no longer valid here
-    //for (auto imgview : swc_wrap.img_views) {
-    //    vkDestroyImageView(dvc, imgview, nullptr);
-    //}
-    //swc_wrap.img_views.clear();
-//
-    //for (auto img : swc_wrap.images) {
-    //    vkDestroyImage(dvc, img, nullptr);
-    //}
-    //swc_wrap.images.clear();
+    for (auto imgview : swc_wrap.img_views) {
+        std::optional<VkImageView> v = vkapp.img_views.pop(imgview);
+        if(v.has_value()) vkDestroyImageView(dvc, *v, nullptr);
+    }
+    swc_wrap.img_views.clear();
+
+    for (auto fb_k : swc_wrap.framebuffers) {
+        std::optional<VkFramebufferWrap> fb = vkapp.framebuffers.pop(fb_k);
+        if(fb.has_value()) vkDestroyFramebuffer(dvc, fb->framebuffer, nullptr);
+    }
+    swc_wrap.framebuffers.clear();
+
+    for(auto fb_info_h : swc_wrap.fb_infos) {
+        vkapp_info.framebuffers.pop(fb_info_h);
+    }
+    swc_wrap.fb_infos.clear();
+
+    //vkDestroySemaphore(dvc, swc_wrap.img_semaphore, nullptr);
+    //vkapp.semaphores.pop(swc_wrap.img_semaphore_h);
+
+    //vkDestroyFence(dvc, swc_wrap.img_fence, nullptr);
+    //vkapp.fences.pop(swc_wrap.img_fence_h);
+    
 }

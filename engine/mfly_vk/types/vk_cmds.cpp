@@ -19,21 +19,24 @@ sm_key mfly::vk::AddCmdPool(sm_key& dvc_handle, VkCmdPoolInfoWrap info) {
     return k;
 }
 
-sm_key mfly::vk::AddCmdBuffers(sm_key& dvc_handle, VkCmdBufInfoWrap info) {
-    sm_key first  = vkapp.cmd_buffers.push(VkCommandBuffer());
-    for(int i = 1; i < info.count; ++i)
-        vkapp.cmd_buffers.push(VkCommandBuffer());
+std::vector<sm_key> mfly::vk::AddCmdBuffers(sm_key& dvc_handle, VkCmdBufInfoWrap info) {
+    
     VkCommandBufferAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = vkapp.cmd_pools[info.pool_handle];
     alloc_info.level = (VkCommandBufferLevel)info.level;
     alloc_info.commandBufferCount = info.count;    
 
-    // TODO: Properly select logical dvc
-    VkResult res = vkAllocateCommandBuffers(vkapp.logical_dvcs[dvc_handle], &alloc_info, vkapp.cmd_buffers.end()-info.count);
+    std::vector<VkCommandBuffer> cmd_buffers;
+    cmd_buffers.resize(info.count);
+    VkResult res = vkAllocateCommandBuffers(vkapp.logical_dvcs[dvc_handle], &alloc_info, cmd_buffers.data());
     if(res != VK_SUCCESS) printf("Faield to create command buffers");
 
-    return first;
+    std::vector<sm_key> buf_handles;    
+    for(VkCommandBuffer& cmd_buf : cmd_buffers)
+        buf_handles.push_back(vkapp.cmd_buffers.push(cmd_buf));
+
+    return buf_handles;
 }
 
 sm_key mfly::vk::AddRecordBegin(VkBeginInfoWrap info) {

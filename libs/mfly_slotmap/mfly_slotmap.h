@@ -14,10 +14,10 @@ namespace mfly {
     // TODO: structure that groups in constant groups (paged vector?)
 
     struct sm_key {
-        uint32_t own_index;
-        uint32_t data_index;
+        uint32_t own_index = UINT32_MAX;
+        uint32_t data_index = UINT32_MAX;
         uint32_t version = 0;
-        uint32_t tags;
+        uint32_t tags = UINT32_MAX;
     };
 
     template<class T>
@@ -31,8 +31,8 @@ namespace mfly {
         std::vector<uint32_t> _data_to_index;
 
         public:
-        typedef T* iterator;
-        typedef T value_type;
+        //typedef T* iterator;
+        //typedef T value_type;
 
         slotmap<T>(uint32_t minsize = 4096, uint32_t pagesize = 4096) {
             indices.reserve(minsize);
@@ -81,10 +81,12 @@ namespace mfly {
             return (*this)[k];
         }
 
-        inline bool has_key(sm_key key) { return key.own_index > indices.size()-1; }
+        inline bool has_key(sm_key key) { 
+            return int64_t(key.own_index) < int64_t(indices.size()); 
+        }
 
         bool erase (sm_key key) {
-            if(key.own_index > indices.size()-1) return false;
+            if(!has_key(key)) return false;
 
             indices[key.own_index].version = UINT32_MAX;
 
@@ -145,11 +147,12 @@ namespace mfly {
             return indices[_data_to_index[index]];
         }
 
-        T* begin() { return &_data[0];}
-        T* end() { return &_data[_data.size()-1];}
-        //T& back() {return _data[data.size()-1];}
+        //std::vector<T>::iterator begin() { return _data.begin();}
+        //std::vector<T>::iterator end() { return _data.end();}
         
-        void from_handles(std::vector<sm_key>& keys, std::vector<T> out) {
+        T* back() {return _data[data.size()-1];}
+        
+        void from_handles(std::vector<sm_key>& keys, std::vector<T>& out) {
             out.clear();
             for(sm_key& k : keys)
                 out.push_back(_data[k.data_index]);

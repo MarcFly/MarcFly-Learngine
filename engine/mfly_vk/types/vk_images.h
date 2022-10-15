@@ -43,7 +43,7 @@ namespace mfly::vk {
     };
 
     void TriggerResizeSwapchain(sm_key swapchain_handle, VkExtent2D area);
-    sm_key CreateSwapchain(VkSwapchainCreateInfoKHR info, sm_key surface_handle, sm_key logical_dvc_handle);
+    void CreateSwapchain(sm_key& swapchain_handle, VkSwapchainCreateInfoKHR info, sm_key surface_handle, sm_key logical_dvc_handle);
     void RecreateSwapchain(sm_key& swapchain_handle);
     void DestroySwapchain(VkSwapchainWrap& swc_wrap);
 

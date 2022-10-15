@@ -18,7 +18,7 @@ namespace mfly::vk {
     struct VkBuffer_InitInfo {
         VkBufferCreateInfo buffer = {};
         VkDMEMHandles handles;
-        mfly::slotmap<VkBufferViewCreateInfo> views;
+        std::vector<VkBufferViewCreateInfo> views;
     };
     
     sm_key CreateBuffer(VkBuffer_InitInfo info);
@@ -27,7 +27,7 @@ namespace mfly::vk {
     struct VkBufferMemWrap
     {
         VkBuffer buffer;
-        mfly::slotmap<VkBufferView> views;
+        std::vector<VkBufferView> views;
         sm_key mem_handle;
     };
 

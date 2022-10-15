@@ -57,7 +57,7 @@ sm_key mfly::vk::InitVkInstance(VkInstance_InitInfo& info)
     return vkapp.phys_dvcs.GetKeyAtIDX(0);
 }
 
-void mfly::vk::InitQueues(VkLDVC_InitInfo &info, sm_key phys_device_handle)
+sm_key mfly::vk::InitQueues(VkLDVC_InitInfo &info, sm_key phys_device_handle)
 {
     uint32_t size = info.queues_info.size();
     info.queues_info.back().pQueuePriorities = info.prios.back().data();
@@ -68,7 +68,7 @@ void mfly::vk::InitQueues(VkLDVC_InitInfo &info, sm_key phys_device_handle)
     }
 
     sm_key ldvc_key = vkapp.logical_dvcs.push_back(VkDevice());
-    VkDevice* device = &vkapp.logical_dvcs[ldvc_key];
+    VkDevice& device = vkapp.logical_dvcs[ldvc_key];
 
     info.create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     info.create_info.queueCreateInfoCount = info.queues_info.size();
@@ -88,10 +88,12 @@ void mfly::vk::InitQueues(VkLDVC_InitInfo &info, sm_key phys_device_handle)
         }
     }
 
-    VkResult result = vkCreateDevice(vkapp.phys_dvcs[phys_device_handle], &info.create_info, nullptr, device);
+    VkResult result = vkCreateDevice(vkapp.phys_dvcs[phys_device_handle], &info.create_info, nullptr, &device);
     assert(result == 0);
     printf("VkResult is: %d\n", result);
 
     // DEBUG INFO
     vkapp_info.l_dvcs.push_back(info);
+
+    return ldvc_key;
 }

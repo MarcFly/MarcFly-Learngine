@@ -30,7 +30,7 @@ namespace mfly::vk
         uint32_t AsyncGather();
 
         //uint32_t event_code_start = 0;
-
+        uint32_t SwapchainNextImage(sm_key& swapchain_handle);
         enum ERRORCODE
         {
             GOOD = 0,
@@ -57,8 +57,8 @@ namespace mfly::vk
         typedef void*(*GetSurfaceFun)(void*, uint32_t);
         void ProvideSurfaceFun(GetSurfaceFun fun);
 
-        sm_key AddSemaphore(sm_key& dvc_handle, sm_key& semaphore_handle);
-        sm_key AddFence(sm_key& dvc_handle, sm_key& fence_handle);
+        VkSemaphore& AddSemaphore(sm_key& dvc_handle, sm_key& semaphore_handle);
+        VkFence& AddFence(sm_key& dvc_handle, sm_key& fence_handle);
 
 
     //===================================
@@ -112,26 +112,10 @@ namespace mfly::vk
         mfly::slotmap<VkFramebufferInfoWrap> framebuffers;
 
     };
+
+    //==============================================================
+    void ExampleBuffersImages();
 };
-
-template<class T>
-inline uint32_t PushNonInvalid(mfly::slotmap<T>& vec, int64_t check_val) {
-    int64_t v = vec.size()-1;
-    if(check_val > v){
-        vec.push_back(T());
-        check_val = vec.size()-1;
-    }
-
-    return check_val;
-}
-
-template<class T>
-inline void VecFromHandles(const mfly::slotmap<uint32_t> handles, const mfly::slotmap<T>& data, mfly::slotmap<T>& out) {
-    out.clear();
-    for(auto h : handles) {
-        out.push_back(data[h]);
-    }
-}
 
 extern mfly::vk::VkApp vkapp;
 extern mfly::vk::VkAppInfo vkapp_info;

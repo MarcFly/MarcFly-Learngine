@@ -56,13 +56,13 @@ sm_key mfly::vk::CreateBuffer(VkBuffer_InitInfo info)
     // Create View for Texel Buffers
     if (info.buffer.usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | info.buffer.usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)
     {
-        for (auto view_info : info.views)
+        for (VkBufferViewCreateInfo& view_info : info.views)
         {
             view_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
             view_info.buffer = buf.buffer;
 
             buf.views.push_back(VkBufferView());
-            vkCreateBufferView(dvc, &view_info, nullptr, buf.views.end());
+            vkCreateBufferView(dvc, &view_info, nullptr, &buf.views.back());
         }
     }
 

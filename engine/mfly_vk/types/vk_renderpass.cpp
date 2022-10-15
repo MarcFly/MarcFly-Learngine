@@ -3,7 +3,7 @@
 
 using namespace mfly;
 
-void  mfly::vk::AddAttachmentDesc(sm_key& attachment_desc_handle, VkAttachmentInfoWrap info) {
+VkAttachmentDescription& mfly::vk::AddAttachmentDesc(sm_key& attachment_desc_handle, VkAttachmentInfoWrap info) {
     VkAttachmentDescription& desc = vkapp.attachment_descs.insert(attachment_desc_handle, VkAttachmentDescription());
     
     desc.loadOp = (VkAttachmentLoadOp)info.ops.load;
@@ -18,6 +18,8 @@ void  mfly::vk::AddAttachmentDesc(sm_key& attachment_desc_handle, VkAttachmentIn
     
     desc.initialLayout = info.input_layout;
     desc.finalLayout = info.output_layout;
+
+    return desc;
 }
 
 void mfly::vk::AddSubPass(sm_key& subpass_handle, VkSubPassInfoWrap& info) {

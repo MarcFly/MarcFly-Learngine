@@ -18,7 +18,16 @@ uint16_t mfly::win::Init()
     window& main = windows[windows.size()-1];
 
     main.id = windows.size()-1;
-    main.xdesc.title = "Test main window";
+    main.xdesc.title = "Window Title";
+    main.xdesc.name = "Test Window";
+    main.xdesc.closable = false;
+    main.xdesc.visible = true;
+    main.xdesc.maximizable = true;
+    main.xdesc.movable = true;
+    main.xdesc.resizable = true;
+    main.xdesc.centered = true;
+
+    
     main.xwindow.create(main.xdesc, main.xqueue);
     
 

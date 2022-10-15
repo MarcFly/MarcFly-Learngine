@@ -34,7 +34,7 @@ namespace mfly::vk {
         std::vector<void*> exts_info;
     };
 
-    void InitQueues(VkLDVC_InitInfo& info, sm_key phys_device_handle);
+    sm_key InitQueues(VkLDVC_InitInfo& info, sm_key phys_device_handle);
 
     struct VkQueueWrap
     {
