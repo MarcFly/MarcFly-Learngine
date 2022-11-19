@@ -1,1 +1,0 @@
-[{"title":"About this Project","layout":"default","content":"# About this Project\n\n# Entries Index\n\n{% include list.liquid all=true %}\n","dir":"/","name":"index.md","path":"index.md","url":"/"}]
