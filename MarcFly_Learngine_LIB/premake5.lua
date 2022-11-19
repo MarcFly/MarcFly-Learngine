@@ -3,6 +3,9 @@
 --include "premakefiles/parson.lua"
 --include "premakefiles/pcg.lua"
 --include "premakefiles/spdlog.lua"
+include "premakefiles/flecs.lua"
+
+IncludeDirs["flecs"] = "submodules/flecs"
 
 IncludeDirs["SPDLOG"] = "%{LibName}/vendor/spdlog/include"
 IncludeDirs["DearIMGui"] = "%{LibName}/vendor/imgui"
@@ -12,7 +15,7 @@ IncludeDirs["PCG"] = "%{LibName}/vendor/pcg"
 
 project "MarcFly_Learngine_LIB"
     location "."
-    kind "StaticLib"
+    kind "ConsoleApp"
     language "C++"
     cppdialect "C++17"
     staticruntime "on"
@@ -20,16 +23,21 @@ project "MarcFly_Learngine_LIB"
     targetdir (wsbin .. "/%{prj.name}")
     objdir (wsbinint .. "/%{prj.name}")
 
+    --flecs files
+
     files {
-        "%{prj.name}/**.h",
-        "%{prj.name}/**.cpp",
-        "%{prj.name}/**.hpp",
-        "%{prj.name}/**.cxx"
+        "src/**.h",
+        "src/**.cpp",
+        "src/**.hpp",
+        "src/**.cxx"
     }
 
     includedirs {
-        "./src"
+        "./src",
+        "%{IncludeDirs.flecs}"
     }
+
+    links {"flecs"}
 
     defines {
         "MFL_BUILD_STATIC"

@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MarcFly_Learngine_LIB", "MarcFly_Learngine_LIB\MarcFly_Learngine_LIB.vcxproj", "{9DF83D52-0965-F94C-D258-91AA3E841BB5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "flecs", "MarcFly_Learngine_LIB\submodules\flecs\flecs.vcxproj", "{52B7710F-BECB-99C0-874D-3D20F32096F1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -16,6 +18,12 @@ Global
 		{9DF83D52-0965-F94C-D258-91AA3E841BB5}.Distribution|x64.Build.0 = Distribution|x64
 		{9DF83D52-0965-F94C-D258-91AA3E841BB5}.Release|x64.ActiveCfg = Release|x64
 		{9DF83D52-0965-F94C-D258-91AA3E841BB5}.Release|x64.Build.0 = Release|x64
+		{52B7710F-BECB-99C0-874D-3D20F32096F1}.Debug|x64.ActiveCfg = Debug|x64
+		{52B7710F-BECB-99C0-874D-3D20F32096F1}.Debug|x64.Build.0 = Debug|x64
+		{52B7710F-BECB-99C0-874D-3D20F32096F1}.Distribution|x64.ActiveCfg = Distribution|x64
+		{52B7710F-BECB-99C0-874D-3D20F32096F1}.Distribution|x64.Build.0 = Distribution|x64
+		{52B7710F-BECB-99C0-874D-3D20F32096F1}.Release|x64.ActiveCfg = Release|x64
+		{52B7710F-BECB-99C0-874D-3D20F32096F1}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
