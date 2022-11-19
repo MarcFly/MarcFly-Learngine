@@ -1,0 +1,3 @@
+[submodule "MarcFly_Learngine_LIB/submodules/flecs"]
+	path = MarcFly_Learngine_LIB/submodules/flecs
+	url = https://github.com/SanderMertens/flecs.git
