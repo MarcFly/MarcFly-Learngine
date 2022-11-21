@@ -1,11 +1,15 @@
+include "defaults.lua"
+
 --include "premakefiles/imgui.lua"
 --include "premakefiles/mathgeolib.lua"
 --include "premakefiles/parson.lua"
 --include "premakefiles/pcg.lua"
 --include "premakefiles/spdlog.lua"
 include "premakefiles/flecs.lua"
+include "premakefiles/crosswindow.lua"
 
 IncludeDirs["flecs"] = "submodules/flecs"
+IncludeDirs["CrossWindow"] = "submodules/crosswindow/src"
 
 IncludeDirs["SPDLOG"] = "%{LibName}/vendor/spdlog/include"
 IncludeDirs["DearIMGui"] = "%{LibName}/vendor/imgui"
@@ -20,8 +24,8 @@ project "MarcFly_Learngine_LIB"
     cppdialect "C++17"
     staticruntime "on"
 
-    targetdir (wsbin .. "/%{prj.name}")
-    objdir (wsbinint .. "/%{prj.name}")
+    targetdir (wsbin .. "/" ..  outputdir .. "/%{prj.name}")
+    objdir (wsbinint .. "/" ..  outputdir .. "/%{prj.name}")
 
     --flecs files
 
@@ -34,10 +38,13 @@ project "MarcFly_Learngine_LIB"
 
     includedirs {
         "./src",
-        "%{IncludeDirs.flecs}"
+        "%{IncludeDirs.flecs}",
+        "%{IncludeDirs.CrossWindow}"
     }
 
-    links {"flecs"}
+    links {
+        "flecs", "%{crosswin_rls}"
+    }
 
     defines {
         "MFL_BUILD_STATIC"

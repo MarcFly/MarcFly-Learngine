@@ -1,3 +1,9 @@
 [submodule "MarcFly_Learngine_LIB/submodules/flecs"]
 	path = MarcFly_Learngine_LIB/submodules/flecs
 	url = https://github.com/SanderMertens/flecs.git
+[submodule "MarcFly_Learngine_LIB/submodules/crosswindow"]
+	path = MarcFly_Learngine_LIB/submodules/crosswindow
+	url = https://github.com/alaingalvan/CrossWindow.git
+[submodule "MarcFly_Learngine_LIB/submodules/crosswindow_gfx"]
+	path = MarcFly_Learngine_LIB/submodules/crosswindow_gfx
+	url = https://github.com/alaingalvan/CrossWindow-Graphics.git

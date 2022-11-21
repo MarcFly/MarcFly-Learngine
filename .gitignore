@@ -14,7 +14,7 @@ _deps
 **cmake_**/
 **builds**/
 **build**/
-
+**bin-int**/
 **binint**/
 **submodules**/
 

@@ -4,7 +4,7 @@ project "flecs"
     language "C"
     staticruntime "on"
 
-    targetdir (wsbin .. "/%{prj.name}")
-    objdir (wsbinint .. "/%{prj.name}")
+    targetdir (wsbin .. "/" .. outputdir .. "/%{prj.name}")
+    objdir (wsbinint .. "/" .. outputdir .. "/%{prj.name}")
 
     files{"../submodules/flecs/flecs.h", "../submodules/flecs/flecs.c"}
