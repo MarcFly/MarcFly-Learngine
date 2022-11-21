@@ -8,3 +8,5 @@ project "flecs"
     objdir (wsbinint .. "/" .. outputdir .. "/%{prj.name}")
 
     files{"../submodules/flecs/flecs.h", "../submodules/flecs/flecs.c"}
+
+IncludeDirs["flecs"] = "submodules/flecs"

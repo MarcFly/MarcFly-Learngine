@@ -8,8 +8,8 @@ include "defaults.lua"
 include "premakefiles/flecs.lua"
 include "premakefiles/crosswindow.lua"
 
-IncludeDirs["flecs"] = "submodules/flecs"
-IncludeDirs["CrossWindow"] = "submodules/crosswindow/src"
+
+
 
 IncludeDirs["SPDLOG"] = "%{LibName}/vendor/spdlog/include"
 IncludeDirs["DearIMGui"] = "%{LibName}/vendor/imgui"
@@ -35,11 +35,13 @@ project "MarcFly_Learngine_LIB"
         "src/**.hpp",
         "src/**.cxx"
     }
+    
 
     includedirs {
         "./src",
         "%{IncludeDirs.flecs}",
-        "%{IncludeDirs.CrossWindow}"
+        "%{IncludeDirs.CrossWindow}",
+        "%{IncludeDirs.CrossWindowGFX}"
     }
 
     links {
