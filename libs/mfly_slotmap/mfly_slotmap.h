@@ -13,6 +13,43 @@
 namespace mfly {
     // TODO: structure that groups in constant groups (paged vector?)
 
+    // pagesize for number of items
+    template<typename T, size_t pagesize>
+    struct paged_vec {
+        private:
+        size_t capacity; // in number of pages
+        size_t size;
+        T** data;
+        public:
+
+        void reserve(size_t num_items) {
+            size_t num_pages = (num_items / pagesize) + 1;
+            if(num_pages <= capacity) return;
+            T** new_alloc = new T*[num_pages];
+            for(int i = 0; i < capacity; ++i)
+                new_alloc[i] == data[i];
+            for(int i = capacity; i < num_pages; ++i)
+                new_alloc[i] = new T[pagesize*sizeof(T)];
+
+            T** temp = data;
+            data = new_alloc;
+            delete[] temp;
+        }
+
+        inline size_t calcpage(const size_t& pos) {return pos%pagesize;}
+
+        T& push(T& data) {
+            if(size == capacity*pagesize) reserve(capacity+1); // reserve one page if needed
+            size_t page = size%pagesize;
+            data[page][size - page*pagesize] = data;
+            ++size;
+        }
+
+        T& operator[](const size_t pos) {return data[calcpage(pos)][pos - calcpage(pos)*pagesize];}
+
+
+    };
+    
     struct sm_key {
         uint32_t own_index = UINT32_MAX;
         uint32_t data_index = UINT32_MAX;
@@ -20,21 +57,21 @@ namespace mfly {
         uint32_t tags = UINT32_MAX;
     };
 
-    template<class T>
+    template<class T, size_t pagesize>
     class slotmap {
         private:
         std::shared_mutex index_mtx;
-        std::vector<sm_key> indices; // We do not care, after certain time, indices will be filled with holes :D
+        paged_vec<sm_key,pagesize> indices; // We do not care, after certain time, indices will be filled with holes :D
         
         std::shared_mutex data_mtx;
-        std::vector<T> _data;
-        std::vector<uint32_t> _data_to_index;
+        paged_vec<T,pagesize> _data;
+        paged_vec<uint32_t, pagesize> _data_to_index;
 
         public:
         //typedef T* iterator;
         //typedef T value_type;
 
-        slotmap<T>(uint32_t minsize = 4096, uint32_t pagesize = 4096) {
+        slotmap<T, pagesize>(uint32_t minsize = 4096, uint32_t pagesize = 4096) {
             indices.reserve(minsize);
             _data.reserve(minsize);
             _data_to_index.reserve(minsize);
@@ -168,6 +205,40 @@ namespace mfly {
             _data_to_index.clear();
         }
     };
+
+
+    typedef std::unique_lock<std::shared_mutex> ulock;
+    typedef std::shared_lock<std::shared_mutex> shrlock;
+
+    // Scoped usage of data
+    template<typename T>
+    struct handle_user {
+        handle_user(T& _ref, const shrlock& _slotmap_readlock, const ulock& _data_writelock) :
+            data(_ref), slotmap_readlock(_slotmap_readlock), data_writelock(_data_writelock) {}
+        T& data;
+        const shrlock slotmap_readlock;
+        const ulock data_writelock;
+    };
+
+    // Handle should know about a slotmap
+    template<typename T>
+    struct sm_handle {
+        std::shared_ptr<sm_key> key;
+        T* data; // How to know when it is invalidated?
+        std::shared_mutex use; // Copy of the mutex from the slotmap
+        std::
+        typedef std::pair<std::shared_lock<std::shared_mutex>, T&> handle_user;
+        handle_user Use() { // Lock the vector from resizing, when out of scope, data is not longer safe to change
+            ++key.version;
+            return handle_user(std::shared_lock<std::shared_mutex>(use), *data);
+        }
+    };
+
+    void example() {
+        std::shared_mutex mtx;
+        std::shared_lock<std::shared_mutex> lock(mtx);
+        
+    }
 
 };
 
